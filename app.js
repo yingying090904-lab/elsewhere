@@ -1,9 +1,8 @@
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-const KEY = 'elsewhere-v242-state';
-const LEGACY_KEY = 'elsewhere-v24-state';
-const LEGACY_KEY_2 = 'elsewhere-v21-state';
-const VERSION = '2.4.3-thomas-render-fix';
+const KEY = 'elsewhere-state';
+const LEGACY_KEYS = ['elsewhere-v242-state','elsewhere-v24-state','elsewhere-v23-state','elsewhere-v22-state','elsewhere-v21-state','elsewhere-v20-state'];
+const VERSION = '2.5.3-viewport-linework';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -75,11 +74,13 @@ const defaultState = {
 function load(){
   try{
     const fresh=JSON.parse(localStorage.getItem(KEY)||'null');
-    const legacy=!fresh?JSON.parse(localStorage.getItem(LEGACY_KEY)||'null'):null;
-    const legacy2=!fresh&&!legacy?JSON.parse(localStorage.getItem(LEGACY_KEY_2)||'null'):null;
-    const saved=fresh||legacy||legacy2;
+    let legacy=null;
+    if(!fresh){
+      for(const k of LEGACY_KEYS){ try{ const v=JSON.parse(localStorage.getItem(k)||'null'); if(v){legacy=v;break;} }catch{} }
+    }
+    const saved=fresh||legacy;
     const out=saved?Object.assign(clone(defaultState),saved):clone(defaultState);
-    if((legacy||legacy2)&&!fresh){ out.theme='blush'; out.custom=Object.assign(clone(defaultState.custom),out.custom||{}, {accent:'',paper:'',ink:''}); }
+    if(legacy&&!fresh){ out.theme='blush'; out.custom=Object.assign(clone(defaultState.custom),out.custom||{}, {accent:'',paper:'',ink:''}); }
     out.settings ||= clone(defaultState.settings);
     out.settings.thomasProfile=Object.assign(clone(defaultState.settings.thomasProfile),out.settings.thomasProfile||{});
     out.settings.thomasLearned ||= [];
@@ -100,8 +101,9 @@ function load(){
     return out;
   }catch{return clone(defaultState)}
 }
-let S=load(), current='home', currentArg=null, timer=null, todoTab='todo', homePage=0, homeEdit=false, dragState=null, shadeOpen=false;
-function save(){ localStorage.setItem(KEY,JSON.stringify(S)); }
+let S=load(), current='home', currentArg=null, timer=null, todoTab='todo', homePage=0, homeEdit=false, dragState=null, shadeOpen=false, calendarOffset=0;
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){console.warn('Elsewhere save failed',e);} }
+window.addEventListener('pagehide',save); window.addEventListener('beforeunload',save); document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
 function ch(id){ return S.characters.find(x=>x.id===id); }
 function avatar(c,cls=''){ c=c||{name:S?.settings?.assistantName||'Thomas',initial:'T',color:'#9c7881'}; return `<div class="avatar ${cls}" style="--av:${c.color||'#9c7881'}">${esc(c.initial||c.name?.[0]||'?')}</div>`; }
 function applyTheme(){
@@ -141,7 +143,7 @@ function status(){return `<div class="status"><b id="statusTime">${fmtTime()}</b
 function render(){
   applyTheme();
   const app=$('#app');
-  app.innerHTML=`<div class="shell"><div class="phone">${status()}${S.locked?lockScreen():screen()}</div><aside class="desk-note"><div class="brand-script">Elsewhere</div><p>此刻以外 · a small phone, a bigger you.</p><small>v${VERSION} · scrapbook utility phone</small></aside></div><input id="photoPicker" type="file" accept="image/*" hidden>`;
+  app.innerHTML=`<div class="shell"><div class="phone">${S.locked?lockScreen():screen()}</div><aside class="desk-note"><div class="brand-script">Elsewhere</div><p>此刻以外 · a small phone, a bigger you.</p><small>v${VERSION} · scrapbook utility phone</small></aside></div><input id="photoPicker" type="file" accept="image/*" hidden>`;
   bind();
 }
 function notificationShade(){
@@ -195,7 +197,7 @@ function homeWidgetHtml(w){
   const cd=(S.countdowns||[])[0];
   const mood=(S.moods||[])[0];
   const common=`data-home-widget-id="${esc(w.id)}" data-widget-type="${esc(w.type)}" data-widget-page="${Number(w.page)||0}" data-widget-size="${esc(w.size||'2x1')}"`;
-  if(w.type==='clock') return `<button class="home-widget hw-clock" ${common}><small>NOW</small><b>${fmtTime()}</b><span>${new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'})}</span></button>`;
+  if(w.type==='clock') return `<div class="home-widget hw-clock" ${common}><small>NOW</small><b>${fmtTime()}</b><span>${new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'})}</span></div>`;
   if(w.type==='thomas') return `<button class="home-widget hw-thomas" ${common} data-open="thomas"><small>THOMAS</small><b>${esc(S.settings.assistantName)}</b><span>${esc((S.notifications?.[0]?.text||'I am here.').slice(0,42))}</span></button>`;
   if(w.type==='weather') return `<button class="home-widget hw-weather" ${common} data-open="weather"><small>WEATHER</small><b>${esc(S.weather.temp)}°</b><span>${esc(S.weather.city)} · ${esc(S.weather.desc)}</span></button>`;
   if(w.type==='todo') return `<button class="home-widget hw-todo" ${common} data-open="todo"><small>TODAY</small><b>${due}</b><span>${due?'things left':'all clear'}</span></button>`;
@@ -295,9 +297,9 @@ function view(k,arg){
 
 function thomasView(){
   const p=S.settings.thomasProfile;
-  return `${header(S.settings.assistantName,'always here for you.','<button class="text-action" data-thomas-style>语气</button><button class="text-action" data-thomas-clear>清空</button>')}<main class="chat-page thomas-page"><div class="assistant-intro"><div class="thomas-portrait">T</div><div><b>${esc(S.settings.assistantName)}</b><p>聊天陪伴 · 生活助手 · 会慢慢学会你的偏好</p></div></div><div class="thomas-tone-chip">温柔 ${p.warmth} · 毒舌 ${p.sass} · 主动 ${p.initiative} · ${p.learn?'正在学习你的反馈':'固定语气'}</div><div class="quick-row"><button data-thomas-quick="帮我看看今天还有什么没做">整理今天</button><button data-thomas-quick="帮我记录一下今天的心情">记录心情</button><button data-thomas-quick="给我一个25分钟专注建议">开始专注</button></div><div class="messages" id="thomasMessages">${S.thomas.map(m=>bubble(m,m.role==='assistant'?{name:S.settings.assistantName,initial:'T',color:'#9c7881'}:null)).join('')}</div></main><div class="composer"><textarea id="thomasInput" placeholder="和 Thomas 聊聊，或直接告诉他‘少一点客服腔’…"></textarea><button class="send-text" data-thomas-send>发送</button></div>`;
+  return `${header(S.settings.assistantName,'always here for you.','<button class="text-action" data-thomas-style>语气</button><button class="text-action" data-thomas-clear>清空</button>')}<main class="chat-page thomas-page"><div class="assistant-intro"><div class="thomas-portrait">T</div><div><b>${esc(S.settings.assistantName)}</b><p>聊天陪伴 · 生活助手 · 会慢慢学会你的偏好</p><span class="ai-inline-status" id="thomasAIStatus">Gemini · checking…</span></div></div><div class="thomas-tone-chip">温柔 ${p.warmth} · 毒舌 ${p.sass} · 主动 ${p.initiative} · ${p.learn?'正在学习你的反馈':'固定语气'}</div><div class="quick-row"><button data-thomas-quick="帮我看看今天还有什么没做">整理今天</button><button data-thomas-action="mood">记录心情</button><button data-thomas-action="focus">开始专注</button></div><div class="messages" id="thomasMessages">${S.thomas.map(m=>bubble(m,m.role==='assistant'?{name:S.settings.assistantName,initial:'T',color:'#9c7881'}:null)).join('')}</div></main><div class="composer"><textarea id="thomasInput" placeholder="和 Thomas 聊聊，或直接告诉他‘少一点客服腔’…"></textarea><button class="send-text" data-thomas-send>发送</button></div>`;
 }
-function bubble(m,c){const body=m.type==='voice'?`<button class="voice-bubble" data-play-voice="${m.id}">▶ ${m.seconds||Math.max(2,Math.min(18,Math.ceil((m.text||'').length/4)))}" <span>${esc(m.text||'语音消息')}</span></button>`:`<div class="bubble">${esc(m.text)}</div>`;return `<div class="msg ${m.role==='user'?'mine':''}">${m.role==='assistant'?avatar(c,'sm'):''}<div>${body}<small>${fmtTime(m.ts)}</small></div></div>`}
+function bubble(m,c){const body=m.type==='voice'?`<button class="voice-bubble" data-play-voice="${m.id}">▶ ${m.seconds||Math.max(2,Math.min(18,Math.ceil((m.text||'').length/4)))}" <span>${esc(m.text||'语音消息')}</span></button>`:`<div class="bubble">${esc(m.text)}</div>`;const src=m.role==='assistant'&&m.source==='local'?'<em class="message-source">LOCAL</em>':'';return `<div class="msg ${m.role==='user'?'mine':''}">${m.role==='assistant'?avatar(c,'sm'):''}<div>${body}<small>${fmtTime(m.ts)}${src}</small></div></div>`}
 function messagesView(arg){
   if(arg) return chatView(arg);
   return `${header('消息','messages')}<main class="page">${S.characters.map(c=>{const list=S.chats[c.id]||[]; const last=list.at(-1); return `<button class="person-row" data-chat="${c.id}">${avatar(c)}<span><b>${esc(c.name)}</b><small>${esc(last?.text||'还没有消息')}</small></span><i>${last?fmtTime(last.ts):''}</i></button>`}).join('')}</main>`;
@@ -312,17 +314,19 @@ function todoView(){
   return `${header('待办','todo','<button class="text-action" data-add-todo>新增</button>')}<main class="page todo-page-air"><div class="tabs clickable-tabs"><button data-todo-tab="todo" class="${todoTab==='todo'?'active':''}">待办</button><button data-todo-tab="habits" class="${todoTab==='habits'?'active':''}">习惯</button><button data-todo-tab="done" class="${todoTab==='done'?'active':''}">已完成</button></div>${content}</main>`
 }
 function calendarView(){
-  const ds=[...S.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)), now=new Date();
-  const first=new Date(now.getFullYear(),now.getMonth(),1), offset=first.getDay(), days=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+  const ds=[...S.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)), realNow=new Date();
+  const viewDate=new Date(realNow.getFullYear(),realNow.getMonth()+calendarOffset,1);
+  const y=viewDate.getFullYear(), m=viewDate.getMonth();
+  const first=new Date(y,m,1), offset=first.getDay(), days=new Date(y,m+1,0).getDate();
   const cells=[...Array(offset).fill(null),...Array.from({length:days},(_,i)=>i+1)];
   return `${header('日历','calendar','<button class="round blush-plus" data-add-event>＋</button>')}<main class="page couture-page calendar-couture">
     <section class="calendar-title-card"><small>GOOD PLANS · SOFTER DAYS</small><h2>Calendar</h2><span>make room for little joys</span></section>
-    <section class="calendar-card couture-calendar"><div class="calendar-month"><b>${now.getFullYear()}年${now.getMonth()+1}月</b><span>‹ &nbsp;&nbsp; ›</span></div><div class="week">${['日','一','二','三','四','五','六'].map(x=>`<span>${x}</span>`).join('')}</div><div class="date-dots">${cells.map(d=>d?`<span class="${d===now.getDate()?'today':''}">${d}${S.events.some(e=>e.date===`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)?'<i class="event-dot"></i>':''}</span>`:'<span></span>').join('')}</div></section>
-    <section class="day-agenda"><div class="agenda-head"><div><small>TODAY'S LITTLE PLAN</small><h3>${now.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})}</h3></div><button data-add-event>＋</button></div>${ds.map((e)=>`<div class="agenda-row minimal-agenda"><time>${esc(e.time||'--:--')}</time><div><b>${esc(e.title)}</b><small>${esc(e.date)}</small></div><button class="row-text-action" data-del-event="${e.id}">移除</button></div>`).join('')}</section>
+    <section class="calendar-card couture-calendar"><div class="calendar-month"><button class="calendar-nav" data-calendar-prev aria-label="上个月">‹</button><b>${y}年${m+1}月</b><button class="calendar-nav" data-calendar-next aria-label="下个月">›</button></div><div class="week">${['日','一','二','三','四','五','六'].map(x=>`<span>${x}</span>`).join('')}</div><div class="date-dots">${cells.map(d=>d?`<span class="${calendarOffset===0&&d===realNow.getDate()?'today':''}">${d}${S.events.some(e=>e.date===`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)?'<i class="event-dot"></i>':''}</span>`:'<span></span>').join('')}</div><button class="calendar-today" data-calendar-today ${calendarOffset===0?'disabled':''}>回到本月</button></section>
+    <section class="day-agenda"><div class="agenda-head"><div><small>TODAY'S LITTLE PLAN</small><h3>${realNow.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})}</h3></div><button data-add-event>＋</button></div>${ds.map((e)=>`<div class="agenda-row minimal-agenda"><time>${esc(e.time||'--:--')}</time><div><b>${esc(e.title)}</b><small>${esc(e.date)}</small></div><button class="row-text-action" data-del-event="${e.id}">移除</button></div>`).join('')}</section>
     <div class="torn-quote">Discipline is a form of self-love. <span>Elsewhere</span></div>
   </main>`;
 }
-function studyView(){const sec=S.study.seconds; const mm=String(Math.floor(sec/60)).padStart(2,'0'), ss=String(sec%60).padStart(2,'0');return `${header('书房','study room')}<main class="page"><div class="study-hero"><span>“ 专注是一种温柔的力量。 ”</span></div><div class="timer-card"><div class="tabs"><b>番茄钟</b><span>自定义</span></div><div class="timer" id="timerText">${mm}:${ss}</div><button class="play" data-study-toggle>${S.study.running?'Ⅱ':'▶'}</button><small>今日专注：${S.study.totalMinutes} 分钟</small></div><div class="study-menu"><button data-study-reset="25">25 MIN · CLASSIC</button><button data-study-reset="45">45 MIN · DEEP WORK</button><button data-open="notes">学习笔记</button><button data-open="habits">学习习惯</button></div></main>`}
+function studyView(){const sec=S.study.seconds; const mm=String(Math.floor(sec/60)).padStart(2,'0'), ss=String(sec%60).padStart(2,'0');return `${header('书房','study room')}<main class="page"><div class="study-hero"><span>“ 专注是一种温柔的力量。 ”</span></div><div class="timer-card"><div class="tabs"><b>番茄钟</b><button class="tab-action" data-study-custom>自定义</button></div><div class="timer" id="timerText">${mm}:${ss}</div><button class="play" data-study-toggle>${S.study.running?'Ⅱ':'▶'}</button><small>今日专注：${S.study.totalMinutes} 分钟</small></div><div class="study-menu"><button data-study-reset="25">25 MIN · CLASSIC</button><button data-study-reset="45">45 MIN · DEEP WORK</button><button data-open="notes">学习笔记</button><button data-open="habits">学习习惯</button></div></main>`}
 function foodView(){const total=S.food.reduce((n,x)=>n+Number(x.kcal||0),0);return `${header('饮食','food','<button class="round" data-add-food>＋</button>')}<main class="page"><div class="stats-card"><span><b>${total}</b><small>/ 2000 kcal</small></span><div class="progress"><i style="width:${Math.min(100,total/20)}%"></i></div></div>${S.food.map(f=>`<div class="meal-row"><div><b>${esc(f.meal)}</b><p>${esc(f.name)}</p></div><strong>${f.kcal} kcal</strong><button data-del-food="${f.id}">×</button></div>`).join('')}<div class="water-card"><b>喝水</b><span>${S.water} / 2000 ml</span><div class="progress"><i style="width:${Math.min(100,S.water/20)}%"></i></div><div><button data-water="-250">−250</button><button data-water="250">＋250</button></div></div></main>`}
 function fitnessView(){const mins=S.fitness.reduce((a,x)=>a+Number(x.minutes||0),0), kcal=S.fitness.reduce((a,x)=>a+Number(x.kcal||0),0);return `${header('健身','fitness','<button class="round" data-add-workout>＋</button>')}<main class="page"><div class="fitness-summary"><b>${mins}</b><span>MIN TODAY</span><b>${kcal}</b><span>KCAL</span></div>${S.fitness.map(x=>`<div class="meal-row"><div><b>${esc(x.name)}</b><p>${x.minutes} 分钟</p></div><strong>${x.kcal} kcal</strong><button data-del-workout="${x.id}">×</button></div>`).join('')}</main>`}
 function weatherView(){return `${header('天气','weather')}<main class="page"><div class="weather-big"><span>${esc(S.weather.city)}</span><b>${esc(S.weather.temp)}°</b><p>${esc(S.weather.desc)}</p><small>${esc(S.weather.low)}° — ${esc(S.weather.high)}°</small></div><button class="primary wide" data-weather-refresh>${S.weather.loading?'正在获取…':'使用当前位置更新天气'}</button><p class="hint">天气通过浏览器定位 + Open‑Meteo 获取；拒绝定位时会保留当前天气卡。</p></main>`}
@@ -382,7 +386,7 @@ function widgetHtml(w){
 }
 function worldView(){const log=[...S.privateChats].sort((a,b)=>b.ts-a.ts);return `${header('世界','world engine','<button class="round" data-world-pulse>✦</button>')}<main class="page"><div class="world-card"><small>ACTIVE WORLD</small><h2>${esc(S.worlds.find(w=>w.id===S.activeWorld)?.name||'Main World')}</h2><p>角色会在你离开时继续留下痕迹：主动消息、朋友圈、私聊、秘密与关系变化。</p><button class="primary wide" data-world-pulse>推进世界一次</button></div><h3 class="section-title">世界存档</h3><div class="setting-list">${S.worlds.map(w=>`<button data-world-switch="${w.id}">${w.id===S.activeWorld?'● ':'○ '}${esc(w.name)}<i>›</i></button>`).join('')}<button data-world-new>＋ 新建世界存档<i>›</i></button></div><h3 class="section-title">角色之间</h3>${log.length?log.map(x=>`<article class="private-chat"><small>${rel(x.ts)} · ${esc(ch(x.a)?.name||x.a)} × ${esc(ch(x.b)?.name||x.b)}</small>${x.messages.map(m=>`<p><b>${esc(ch(m.who)?.name||m.who)}：</b>${esc(m.text)}</p>`).join('')}</article>`).join(''):'<div class="empty-paper">还没有留下角色之间的私聊。</div>'}</main>`}
 function characterPhoneView(id){const c=ch(id);if(!c)return header('角色手机')+'<main class="page">not found</main>';const r=S.relationships[id]||{score:50,label:'熟悉',secrets:[]};const mem=S.memories[id]||[];const privateThreads=S.privateChats.filter(x=>x.a===id||x.b===id);return `${header(c.name+' 的手机','private phone')}<main class="page"><div class="phone-peek"><div class="peek-lock">${avatar(c)}<h2>${esc(c.name)}</h2><small>${r.score}/100 · ${esc(r.label)}</small></div><div class="peek-grid"><div><small>MEMORY</small><b>${mem.length}</b><span>长期记忆</span></div><div><small>SECRETS</small><b>${r.secrets.length}</b><span>未说出口</span></div><div><small>CHATS</small><b>${privateThreads.length}</b><span>私人对话</span></div><div><small>CALLS</small><b>${S.callLogs.filter(x=>x.character===id).length}</b><span>通话记录</span></div></div></div><h3 class="section-title">长期记忆</h3>${mem.map(m=>`<div class="memory-row"><span>✦</span><p>${esc(m.text)}</p><small>${'★'.repeat(Math.max(1,m.importance||1))}</small></div>`).join('')||'<div class="empty-paper">还没有形成长期记忆。</div>'}<h3 class="section-title">秘密</h3>${r.secrets.map(x=>`<div class="secret-note">${esc(x)}</div>`).join('')||'<div class="empty-paper">暂时没有秘密。</div>'}<h3 class="section-title">角色私聊</h3>${privateThreads.map(x=>`<article class="private-chat">${x.messages.map(m=>`<p><b>${esc(ch(m.who)?.name||m.who)}：</b>${esc(m.text)}</p>`).join('')}</article>`).join('')||'<div class="empty-paper">没有发现私聊。</div>'}</main>`}
-function settingsView(){const p=S.settings.thomasProfile;return `${header('设置','settings')}<main class="page"><h3 class="section-title">主题</h3><div class="theme-grid">${Object.entries(themes).map(([id,t])=>`<button data-theme="${id}" class="${S.theme===id?'active':''}" style="--sample:${t.wall}"><span></span><b>${esc(t.name)}</b></button>`).join('')}</div><h3 class="section-title">Thomas · 语气养成</h3><div class="thomas-settings"><label>温柔度 <b>${p.warmth}</b><input type="range" min="0" max="100" value="${p.warmth}" data-thomas-range="warmth"></label><label>毒舌度 <b>${p.sass}</b><input type="range" min="0" max="100" value="${p.sass}" data-thomas-range="sass"></label><label>主动程度 <b>${p.initiative}</b><input type="range" min="0" max="100" value="${p.initiative}" data-thomas-range="initiative"></label><label>正式程度 <b>${p.formality}</b><input type="range" min="0" max="100" value="${p.formality}" data-thomas-range="formality"></label><label>话多程度 <b>${p.verbosity}</b><input type="range" min="0" max="100" value="${p.verbosity}" data-thomas-range="verbosity"></label><label class="thomas-field">Thomas 怎么称呼你<input value="${esc(p.address)}" data-thomas-address></label><label class="thomas-field">基础人格<textarea data-thomas-base>${esc(p.base)}</textarea></label><label class="learn-toggle"><input type="checkbox" data-thomas-learn ${p.learn?'checked':''}> 根据聊天反馈慢慢调整语气</label><small>已学会 ${S.settings.thomasLearned.length} 条偏好。你也可以直接对 Thomas 说“别这么官方”“再毒舌一点”“以后叫我 Ann”。</small><button class="pill" data-thomas-forget>清除已学习的语气偏好</button></div><h3 class="section-title">主页 Widgets</h3><p class="hint">每个 Widget 都可以选择页面和尺寸，也可以重复加入同一种。</p>${widgetManagerHtml()}<h3 class="section-title">Elsewhere</h3><div class="setting-list"><button data-wallpaper>更换自己的壁纸 <i>›</i></button><button data-export>导出数据 <i>›</i></button><button data-import>导入数据 <i>›</i></button><button data-reset class="danger">重置小手机 <i>›</i></button></div><p class="hint">Thomas 在部署了 OPENAI_API_KEY 时会优先使用 AI；没有 Key 也可以使用本地生活助手逻辑。</p></main>`}
+function settingsView(){const p=S.settings.thomasProfile;return `${header('设置','settings')}<main class="page"><h3 class="section-title">主题</h3><div class="theme-grid">${Object.entries(themes).map(([id,t])=>`<button data-theme="${id}" class="${S.theme===id?'active':''}" style="--sample:${t.wall}"><span></span><b>${esc(t.name)}</b></button>`).join('')}</div><h3 class="section-title">Thomas · 语气养成</h3><div class="thomas-settings"><label>温柔度 <b>${p.warmth}</b><input type="range" min="0" max="100" value="${p.warmth}" data-thomas-range="warmth"></label><label>毒舌度 <b>${p.sass}</b><input type="range" min="0" max="100" value="${p.sass}" data-thomas-range="sass"></label><label>主动程度 <b>${p.initiative}</b><input type="range" min="0" max="100" value="${p.initiative}" data-thomas-range="initiative"></label><label>正式程度 <b>${p.formality}</b><input type="range" min="0" max="100" value="${p.formality}" data-thomas-range="formality"></label><label>话多程度 <b>${p.verbosity}</b><input type="range" min="0" max="100" value="${p.verbosity}" data-thomas-range="verbosity"></label><label class="thomas-field">Thomas 怎么称呼你<input value="${esc(p.address)}" data-thomas-address></label><label class="thomas-field">基础人格<textarea data-thomas-base>${esc(p.base)}</textarea></label><label class="learn-toggle"><input type="checkbox" data-thomas-learn ${p.learn?'checked':''}> 根据聊天反馈慢慢调整语气</label><small>已学会 ${S.settings.thomasLearned.length} 条偏好。你也可以直接对 Thomas 说“别这么官方”“再毒舌一点”“以后叫我 Ann”。</small><button class="pill" data-thomas-forget>清除已学习的语气偏好</button></div><h3 class="section-title">主页 Widgets</h3><p class="hint">每个 Widget 都可以选择页面和尺寸，也可以重复加入同一种。</p>${widgetManagerHtml()}<h3 class="section-title">Elsewhere</h3><div class="setting-list"><button data-wallpaper>更换自己的壁纸 <i>›</i></button><button data-export>导出数据 <i>›</i></button><button data-import>导入数据 <i>›</i></button><button data-reset class="danger">重置小手机 <i>›</i></button></div><section class="ai-status-card" id="aiStatusCard"><div><small>AI ENGINE</small><b id="aiStatusLabel">正在检查 Gemini…</b><span id="aiStatusMeta">Thomas 与角色共用同一个 Gemini 连接</span></div><button data-ai-test>Test AI</button></section><p class="hint">Render 只需要 GEMINI_API_KEY。AI 失败时会明确标记为 Local，不再偷偷伪装成已连接。</p></main>`}
 
 function uiLayer(){
   let layer=document.querySelector('#uiLayer');
@@ -462,7 +466,7 @@ function addNotification(title,text,target='thomas'){
   if(!S.locked) setTimeout(()=>pushBanner(title,text,target),80);
 }
 async function ask(label,def='',opts={}){ return uiPrompt({title:label,value:def,...opts}); }
-function open(k,arg=null){
+function open(k,arg=null){save();
   if(k==='home'){homeEdit=false; const v=$('.view'); if(v){v.classList.add('going-home');setTimeout(()=>{current='home';currentArg=null;render()},140);return;} current='home';currentArg=null;render();return;}
   if(current==='home'){const ph=$('.phone');ph?.classList.add('app-launching');setTimeout(()=>{current=k;currentArg=arg;render();requestAnimationFrame(()=>$('.app-view')?.classList.add('app-arrived'))},110);return;}
   current=k; currentArg=arg; render(); requestAnimationFrame(()=>{const phone=$('.phone'); if(phone) phone.scrollTop=0; const m=$('.messages'); if(m)m.scrollTop=m.scrollHeight});
@@ -502,25 +506,51 @@ function localThomas(text){
   if(/花|钱|记账|余额/.test(text)){const i=S.finance.filter(x=>x.type==='income').reduce((a,x)=>a+Number(x.amount),0),e=S.finance.filter(x=>x.type==='expense').reduce((a,x)=>a+Number(x.amount),0);return `目前记录的结余是 RM ${(i-e).toFixed(2)}，收入 RM ${i.toFixed(2)}，支出 RM ${e.toFixed(2)}。`;}
   const opts=['我在。你可以不用把事情说得很完整。','听起来你今天脑子里装了很多东西。先把最吵的那一件告诉我。','这件事我记住了。你想让我陪你梳理，还是只想让我听着？','可以。我们把它变小一点，一件一件来。']; return opts[Math.floor(Math.random()*opts.length)];
 }
+async function aiStatus(updateUI=true){
+  try{
+    const r=await fetch('/api/ai-status',{cache:'no-store'}); const d=await r.json();
+    const ok=!!d.configured;
+    if(updateUI){
+      const label=$('#aiStatusLabel'); if(label)label.textContent=ok?'Gemini · Connected':'Gemini · Not connected';
+      const meta=$('#aiStatusMeta'); if(meta)meta.textContent=ok?`${d.model||'Gemini'} · server key detected`:'Render 里还没有可用的 GEMINI_API_KEY';
+      const inline=$('#thomasAIStatus'); if(inline)inline.textContent=ok?'Gemini · connected':'Gemini · offline';
+      const card=$('#aiStatusCard'); if(card)card.classList.toggle('connected',ok);
+    }
+    return d;
+  }catch(e){
+    if(updateUI){ const label=$('#aiStatusLabel'); if(label)label.textContent='Gemini · status unavailable'; }
+    return {configured:false,error:String(e)};
+  }
+}
 async function sendThomas(text){
-  if(!text)return; const learnedNow=learnThomasStyle(text); S.thomas.push({id:uid(),role:'user',text,ts:Date.now()}); save(); render();
-  let reply='';
+  if(!text)return;
+  learnThomasStyle(text);
+  S.thomas.push({id:uid(),role:'user',text,ts:Date.now()}); save(); render();
+  let reply='', source='gemini', error='';
   try{
     if(S.settings.useAI){
       const context=`用户待办：${S.todos.filter(x=>!x.done).map(x=>x.text).join('、')}；今日饮水 ${S.water}ml；今日专注 ${S.study.totalMinutes} 分钟。你叫 Thomas，是 Elsewhere 小手机里的私人生活助手。${thomasStylePrompt()} 你可以基于这些信息给生活建议，但不要假装已经做了未做的动作。若用户正在给你的语气反馈，简短自然地承认并立刻按新语气回应，不要解释参数。`;
-      const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({character:{name:'Thomas',personality:context,relationship:'private assistant',style:'natural concise Chinese messages'},world:{summary:'Elsewhere scrapbook little phone'},messages:S.thomas.slice(-16).map(x=>({role:x.role,content:x.text}))})});
-      if(r.ok){const d=await r.json(); reply=d.content||'';}
+      const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({character:{name:'Thomas',personality:context,relationship:'private assistant',style:'natural concise Chinese messages'},world:{summary:'Elsewhere scrapbook little phone'},messages:S.thomas.slice(-24).map(x=>({role:x.role,content:x.text}))})});
+      const d=await r.json().catch(()=>({}));
+      if(r.ok) reply=d.content||''; else error=d.error||`HTTP ${r.status}`;
     }
-  }catch{}
-  if(!reply) reply=localThomas(text);
-  S.thomas.push({id:uid(),role:'assistant',text:reply,ts:Date.now()}); save(); render(); setTimeout(()=>{const m=$('.messages');if(m)m.scrollTop=m.scrollHeight},10);
+  }catch(e){error=String(e.message||e)}
+  if(!reply){ source='local'; reply=localThomas(text); if(error) uiToast(`Gemini 未连接：${String(error).slice(0,90)}`); }
+  S.thomas.push({id:uid(),role:'assistant',text:reply,ts:Date.now(),source}); save(); render();
+  setTimeout(()=>{const m=$('.messages');if(m)m.scrollTop=m.scrollHeight},10);
 }
 async function sendChat(id,text){
-  if(!text)return; const c=ch(id); S.chats[id] ||= []; S.chats[id].push({id:uid(),role:'user',text,ts:Date.now()}); rememberFromChat(id,text); save(); render();
-  let reply='';
-  try{const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({character:{name:c.name,personality:c.personality,relationship:c.relation,style:c.style},world:{summary:'A private everyday world inside Elsewhere.'},messages:S.chats[id].slice(-20).map(x=>({role:x.role,content:x.text}))})}); if(r.ok) reply=(await r.json()).content||'';}catch{}
-  if(!reply){ const generic=['知道了。','你终于想起回我了。','嗯，然后呢？','好。别又忙到忘记吃东西。']; reply=generic[Math.floor(Math.random()*generic.length)]; }
-  S.chats[id].push({id:uid(),role:'assistant',text:reply,ts:Date.now()}); addNotification(c.name,reply,'messages'); render();
+  if(!text)return; const c=ch(id); if(!c)return;
+  S.chats[id] ||= []; S.chats[id].push({id:uid(),role:'user',text,ts:Date.now()}); rememberFromChat(id,text); save(); render();
+  let reply='',source='gemini',error='';
+  try{
+    const memories=(S.memories[id]||[]).slice(0,10).map(x=>x.text).join('；');
+    const rel=S.relationships[id]||{};
+    const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({character:{name:c.name,personality:`${c.personality||''}\nLong-term memories: ${memories||'none yet'}`,relationship:`${c.relation||''}; relationship score ${rel.score||50}/100`,style:c.style},world:{summary:'A private everyday world inside Elsewhere. Keep continuity across previous messages.'},messages:S.chats[id].slice(-28).map(x=>({role:x.role,content:x.text}))})});
+    const d=await r.json().catch(()=>({})); if(r.ok)reply=d.content||'';else error=d.error||`HTTP ${r.status}`;
+  }catch(e){error=String(e.message||e)}
+  if(!reply){ source='local'; const generic=['知道了。','你终于想起回我了。','嗯，然后呢？','好。别又忙到忘记吃东西。']; reply=generic[Math.floor(Math.random()*generic.length)]; if(error)uiToast(`Gemini 未连接：${String(error).slice(0,90)}`); }
+  S.chats[id].push({id:uid(),role:'assistant',text:reply,ts:Date.now(),source}); addNotification(c.name,reply,'messages'); save(); render();
 }
 function rememberFromChat(id,text){
   S.memories[id] ||= []; S.relationships[id] ||= {score:50,label:'熟悉',secrets:[]};
@@ -674,6 +704,11 @@ function phoneOSBind(){
 
 }
 let iosTouchGesturesBound=false;
+function envSafeBottom(){
+  // CSS env() cannot be read directly in JS; this keeps the home gesture edge narrow
+  // while leaving enough room for iPhone's home-indicator area.
+  return 18;
+}
 function ensureIOSTouchGestures(){
   if(iosTouchGesturesBound)return;
   iosTouchGesturesBound=true;
@@ -684,7 +719,7 @@ function ensureIOSTouchGestures(){
     const phone=document.querySelector('.phone'); if(!phone||!phone.contains(e.target)||ignored(e.target))return;
     const r=phone.getBoundingClientRect();
     g={sx:t.clientX,sy:t.clientY,x:t.clientX,y:t.clientY,phoneRect:r,target:e.target,done:false,
-       top:(t.clientY-r.top)<Math.max(120,r.height*.18), lower:(r.bottom-t.clientY)<Math.max(220,r.height*.42)};
+       top:(t.clientY-r.top)<Math.max(96,r.height*.14), bottomEdge:(r.bottom-t.clientY)<Math.max(54,envSafeBottom()+42)};
   };
   const move=e=>{
     if(!g||g.done)return;
@@ -713,7 +748,7 @@ function ensureIOSTouchGestures(){
       // Lock screen / any app: swipe up decisively.
       if(dy<0){
         if(S.locked){e.preventDefault();S.locked=false;g.done=true;persistRender();return;}
-        if(current!=='home'&&(g.lower||ady>82)){
+        if(current!=='home'&&g.bottomEdge&&ady>58){
           e.preventDefault();g.done=true;open('home');return;
         }
       }
@@ -746,7 +781,11 @@ function updateHomeDots(){
   document.querySelectorAll('.home-page-dots button').forEach((d,i)=>d.classList.toggle('active',i===homePage));
 }
 function bind(){
+  document.querySelectorAll('button').forEach(btn=>{
+    if(btn.matches('[aria-disabled="true"],:disabled')) btn.classList.add('is-disabled-control');
+  });
   ensureHomeNavigation();
+  aiStatus(true);
   ensureIOSTouchGestures();
   // iOS Safari: delegated navigation keeps widgets/dock tappable even after touch/long-press handlers.
   const phoneRoot=$('.phone');
@@ -760,6 +799,7 @@ function bind(){
   $$('[data-chat-send]').forEach(x=>x.onclick=()=>{const inp=$('#chatInput');sendChat(x.dataset.chatSend,inp.value.trim())});
   const ci=$('#chatInput'); if(ci)ci.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('[data-chat-send]')?.click()}};
   $$('[data-thomas-quick]').forEach(x=>x.onclick=()=>sendThomas(x.dataset.thomasQuick));
+  $$('[data-thomas-action]').forEach(x=>x.onclick=()=>{const action=x.dataset.thomasAction;if(action==='mood'){open('mood');return;}if(action==='focus'){S.study.seconds=25*60;S.study.running=true;S.study.lastTick=Date.now();save();open('study');uiToast('25 分钟专注已开始');studyTick();}});
   $('[data-thomas-send]')?.addEventListener('click',()=>{const i=$('#thomasInput');sendThomas(i.value.trim())});
   $('#thomasInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('[data-thomas-send]')?.click()}});
   $('[data-thomas-clear]')?.addEventListener('click',async()=>{if(await uiConfirm({title:'清空聊天',message:'清空和 Thomas 的聊天记录？',confirmText:'清空',danger:true})){S.thomas=[];persistRender();uiToast('Thomas 的聊天记录已清空')}});
@@ -769,6 +809,7 @@ function bind(){
   $('[data-thomas-base]')?.addEventListener('change',e=>{S.settings.thomasProfile.base=e.target.value.trim()||defaultState.settings.thomasProfile.base;save()});
   $('[data-thomas-learn]')?.addEventListener('change',e=>{S.settings.thomasProfile.learn=e.target.checked;save()});
   $('[data-thomas-forget]')?.addEventListener('click',async()=>{if(await uiConfirm({title:'清除学习偏好',message:'Thomas 手动滑杆会保留，只清除他后来学会的语气。',confirmText:'清除'})){S.settings.thomasLearned=[];persistRender();uiToast('已清除 Thomas 的学习偏好')}});
+  $('[data-ai-test]')?.addEventListener('click',async()=>{const b=$('[data-ai-test]');if(b){b.disabled=true;b.textContent='Testing…'}try{const r=await fetch('/api/ai-test',{method:'POST'});const d=await r.json();if(r.ok)uiAlert({title:'Gemini 已连接',message:`${d.model||'Gemini'} 回应正常：${d.content||'OK'}`});else uiAlert({title:'Gemini 连接失败',message:d.error||`HTTP ${r.status}`});}catch(e){uiAlert({title:'Gemini 连接失败',message:String(e.message||e)})}finally{if(b){b.disabled=false;b.textContent='Test AI'}aiStatus(true)}});
   $$('[data-todo]').forEach(x=>x.onchange=()=>{const t=S.todos.find(t=>t.id===x.dataset.todo);t.done=x.checked;persistRender()});
   $$('[data-todo-tab]').forEach(x=>x.onclick=()=>{todoTab=x.dataset.todoTab;render()});
   $('[data-add-todo]')?.addEventListener('click',async()=>{const text=await ask('新的待办','',{placeholder:'例如：完成作业'});if(text){S.todos.unshift({id:uid(),text,done:false});persistRender();uiToast('已加入待办')}});
@@ -776,9 +817,13 @@ function bind(){
   $$('[data-habit]').forEach(x=>x.onclick=()=>{const h=S.habits.find(h=>h.id===x.dataset.habit);h.done=!h.done;persistRender()});
   $('[data-add-habit]')?.addEventListener('click',async()=>{const name=await ask('新的习惯','',{placeholder:'例如：阅读 30 分钟'});if(name){S.habits.push({id:uid(),name,detail:'today',streak:0,done:false});persistRender();uiToast('习惯已加入')}});
   $('[data-add-event]')?.addEventListener('click',async()=>{const v=await uiForm({title:'New Event',fields:[{name:'title',label:'事件名称',value:''},{name:'date',label:'日期',type:'date',value:today()},{name:'time',label:'时间',type:'time',value:'12:00'}]});if(!v?.title)return;S.events.push({id:uid(),title:v.title,date:v.date||today(),time:v.time||''});persistRender();uiToast('日程已保存')});
+  $('[data-calendar-prev]')?.addEventListener('click',()=>{calendarOffset--;render()});
+  $('[data-calendar-next]')?.addEventListener('click',()=>{calendarOffset++;render()});
+  $('[data-calendar-today]')?.addEventListener('click',()=>{calendarOffset=0;render()});
   $$('[data-del-event]').forEach(x=>x.onclick=()=>{S.events=S.events.filter(e=>e.id!==x.dataset.delEvent);persistRender()});
   $('[data-study-toggle]')?.addEventListener('click',()=>{S.study.running=!S.study.running;save();render();studyTick()});
   $$('[data-study-reset]').forEach(x=>x.onclick=()=>{S.study.seconds=Number(x.dataset.studyReset)*60;S.study.running=false;persistRender()});
+  $('[data-study-custom]')?.addEventListener('click',async()=>{const v=await ask('自定义专注分钟','30',{type:'number',placeholder:'例如 30'});const mins=Math.max(1,Math.min(240,Number(v)||0));if(!mins)return;S.study.seconds=mins*60;S.study.running=false;persistRender();uiToast(`已设为 ${mins} 分钟`)});
   $('[data-add-food]')?.addEventListener('click',async()=>{const v=await uiForm({title:'Log Food',fields:[{name:'meal',label:'餐次',value:'晚餐'},{name:'name',label:'吃了什么',value:''},{name:'kcal',label:'大约热量',type:'number',value:'400'}]});if(!v?.name)return;S.food.push({id:uid(),meal:v.meal||'餐食',name:v.name,kcal:Number(v.kcal)||0});persistRender();uiToast('饮食已记录')});
   $$('[data-del-food]').forEach(x=>x.onclick=()=>{S.food=S.food.filter(f=>f.id!==x.dataset.delFood);persistRender()});
   $$('[data-water]').forEach(x=>x.onclick=()=>{S.water=Math.max(0,S.water+Number(x.dataset.water));persistRender()});

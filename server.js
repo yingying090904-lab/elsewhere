@@ -46,21 +46,62 @@ async function socialApi(req,res,path){
   }
   return send(res,404,JSON.stringify({error:'not found'}),'application/json');
 }
+function geminiConfig(){
+  return {
+    key: process.env.GEMINI_API_KEY || '',
+    model: process.env.GEMINI_MODEL || 'gemini-3.8-flash'
+  };
+}
+function buildSystem(character={},world={}){
+  return `You are roleplaying as ${character.name||'a fictional character'}. Stay in character.\nPersonality: ${character.personality||'natural, vivid, concise'}\nRelationship to user: ${character.relationship||'close'}\nSpeech style: ${character.style||'casual text messages'}\nWorld context: ${world.summary||'private everyday life'}\nRules: reply like a real person texting. Avoid assistant framing. Remember established facts from the conversation. Do not claim to perform real-world actions. Keep continuity with prior turns. Reply in the user's language unless the character would naturally switch.`;
+}
+async function callGemini({messages=[],character={},world={},model}){
+  const {key,model:defaultModel}=geminiConfig();
+  if(!key) throw Object.assign(new Error('GEMINI_API_KEY not configured'),{status:503});
+  const selected=model||defaultModel;
+  const contents=(messages||[]).slice(-32).map(m=>({
+    role:m.role==='assistant'?'model':'user',
+    parts:[{text:String(m.content??m.text??'')}]
+  })).filter(x=>x.parts[0].text.trim());
+  if(!contents.length) contents.push({role:'user',parts:[{text:'Hello'}]});
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selected)}:generateContent`;
+  const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':key},body:JSON.stringify({
+    systemInstruction:{parts:[{text:buildSystem(character,world)}]},
+    contents,
+    generationConfig:{temperature:0.9,topP:0.95,maxOutputTokens:900}
+  })});
+  const raw=await r.text();
+  let data={}; try{data=JSON.parse(raw)}catch{}
+  if(!r.ok){
+    const msg=data?.error?.message||raw||`Gemini HTTP ${r.status}`;
+    throw Object.assign(new Error(msg),{status:r.status});
+  }
+  const content=(data?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('').trim();
+  if(!content) throw Object.assign(new Error('Gemini returned an empty response'),{status:502});
+  return {content,model:selected};
+}
 async function proxyChat(req,res){
   try{
-    const {messages=[],character={},world={},model}=await parseJson(req);
-    const key=process.env.OPENAI_API_KEY;
-    if(!key) return send(res,503,JSON.stringify({error:'OPENAI_API_KEY not configured'}),'application/json');
-    const base=(process.env.OPENAI_BASE_URL||'https://api.openai.com/v1').replace(/\/$/,'');
-    const selected=model||process.env.OPENAI_MODEL||'gpt-4.1-mini';
-    const system=`You are roleplaying as ${character.name||'a fictional character'}. Stay in character.\nPersonality: ${character.personality||'natural, vivid, concise'}\nRelationship to user: ${character.relationship||'close'}\nSpeech style: ${character.style||'casual text messages'}\nWorld context: ${world.summary||'private everyday life'}\nRules: reply like a real person texting. Avoid assistant framing. Remember established facts from the conversation. Do not claim to perform real-world actions.`;
-    const r=await fetch(base+'/chat/completions',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+key},body:JSON.stringify({model:selected,messages:[{role:'system',content:system},...messages.slice(-24)],temperature:0.9})});
-    const text=await r.text(); if(!r.ok) return send(res,r.status,text,'application/json'); const data=JSON.parse(text); send(res,200,JSON.stringify({content:data.choices?.[0]?.message?.content||'',model:selected}),'application/json');
-  }catch(e){send(res,500,JSON.stringify({error:String(e.message||e)}),'application/json')}
+    const body=await parseJson(req);
+    const out=await callGemini(body);
+    return send(res,200,JSON.stringify({...out,provider:'gemini'}),'application/json');
+  }catch(e){
+    return send(res,e.status||500,JSON.stringify({error:String(e.message||e),provider:'gemini'}),'application/json');
+  }
+}
+async function aiTest(req,res){
+  try{
+    const out=await callGemini({messages:[{role:'user',content:'Reply with exactly: connected'}],character:{name:'Thomas',personality:'calm private assistant',relationship:'private assistant',style:'very concise'},world:{summary:'Elsewhere connection test'}});
+    return send(res,200,JSON.stringify({...out,provider:'gemini'}),'application/json');
+  }catch(e){
+    return send(res,e.status||500,JSON.stringify({error:String(e.message||e),provider:'gemini'}),'application/json');
+  }
 }
 http.createServer(async(req,res)=>{
   const path=new URL(req.url,'http://localhost').pathname;
   if(req.method==='OPTIONS'){res.writeHead(204,{'access-control-allow-origin':'*','access-control-allow-methods':'GET,POST,OPTIONS','access-control-allow-headers':'content-type'});return res.end()}
+  if(req.method==='GET'&&path==='/api/ai-status'){const c=geminiConfig();return send(res,200,JSON.stringify({provider:'gemini',configured:!!c.key,model:c.model}),'application/json')}
+  if(req.method==='POST'&&path==='/api/ai-test') return aiTest(req,res);
   if(req.method==='POST'&&path==='/api/chat') return proxyChat(req,res);
   if(path.startsWith('/api/social/')) return socialApi(req,res,path);
   return serveStatic(req,res);
