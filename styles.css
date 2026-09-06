@@ -637,3 +637,137 @@ html,body,#app,.shell{height:100dvh!important;min-height:100dvh!important;max-he
 .today-page>.tumblr-statusline,.today-page>.tumblr-brand,.today-page>.home-profile-chip,.today-page>.home-widget-grid{position:relative;z-index:2}
 /* a tiny editorial rule below the bento instead of filling the page with decoration */
 .today-page>.home-widget-grid:after{content:"PRIVATE ARCHIVE  ·  ELSEWHERE";grid-column:1/-1;margin-top:8px;padding-top:11px;border-top:1px solid color-mix(in srgb,var(--accent) 12%,transparent);font:8px Georgia,serif;letter-spacing:.22em;color:color-mix(in srgb,var(--ink) 38%,transparent);text-align:right}
+
+/* v2.5.4 — crisp launcher + smoother iOS interactions
+   Native scroll-snap only, reduced compositing, sharper surfaces, denser bento. */
+
+/* 1. Crispness: remove the translucent blur layer that softened the whole launcher. */
+.home-page::before{
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  background:linear-gradient(180deg,
+    color-mix(in srgb,var(--paper) 7%,transparent),
+    color-mix(in srgb,var(--accent2) 4%,transparent))!important;
+}
+.today-page:before{opacity:.38!important}
+.today-page:after{
+  opacity:.48!important;
+  box-shadow:none!important;
+}
+.today-page>.home-widget-grid:after{
+  color:color-mix(in srgb,var(--ink) 52%,transparent)!important;
+  border-top-color:color-mix(in srgb,var(--accent) 16%,transparent)!important;
+}
+
+/* Text and cards read clearly instead of looking fogged-over. */
+.today-page .tumblr-brand h1,
+.today-page .home-profile-chip,
+.home-widget,
+.app-page .phone-app-grid .tumblr-app{
+  -webkit-font-smoothing:antialiased;
+  text-rendering:geometricPrecision;
+}
+.home-widget{
+  background:color-mix(in srgb,var(--paper) 94%,white)!important;
+  border-color:color-mix(in srgb,var(--accent) 14%,white)!important;
+  box-shadow:0 5px 14px color-mix(in srgb,var(--ink) 5%,transparent)!important;
+}
+.home-widget b,.home-widget strong,.home-widget .widget-main{color:var(--ink)!important}
+.home-widget small,.home-widget p{color:color-mix(in srgb,var(--ink) 58%,var(--paper))!important}
+
+/* 2. Performance: expensive live blur was causing stutter on iPhone. */
+.phone-dock,
+.home-page-dots,
+.page-head,
+.composer,
+.home-edit-bar,
+.notification-shade,
+.ew-notification-banner{
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+.phone-dock{
+  background:color-mix(in srgb,var(--paper) 96%,white)!important;
+  box-shadow:0 8px 20px color-mix(in srgb,var(--ink) 8%,transparent)!important;
+}
+.home-page-dots{background:color-mix(in srgb,var(--paper) 92%,white)!important}
+.page-head{background:color-mix(in srgb,var(--paper) 97%,white)!important}
+
+/* No blur/scale animation on app launch. Keep a tiny translate only. */
+.phone.app-launching .swipe-home{animation:none!important;filter:none!important;transform:none!important;opacity:1!important}
+.app-view{animation:ewAppInFast .12s ease-out both!important}
+@keyframes ewAppInFast{from{transform:translateY(7px);opacity:.72}to{transform:none;opacity:1}}
+.app-view.going-home{animation:ewAppOutFast .10s ease-in both!important}
+@keyframes ewAppOutFast{to{transform:translateY(7px);opacity:0}}
+
+/* 3. One scroll engine only: native iOS horizontal scrolling + snap. */
+.home-pages{
+  scroll-behavior:auto!important;
+  scroll-snap-type:x mandatory!important;
+  touch-action:auto!important;
+  overscroll-behavior-x:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+}
+.home-page,
+.home:not(.home-edit) .page-widget-zone .home-widget,
+.home:not(.home-edit) .phone-app-grid .tumblr-app,
+.home:not(.home-edit) .home-profile-chip,
+.home:not(.home-edit) .page-add-widget{
+  touch-action:auto!important;
+}
+.home-page{scroll-snap-stop:normal!important}
+.home-page-dots button{transition:width .12s ease,background .12s ease!important}
+
+/* 4. Second-page bento: balanced, dense, no awkward vertical holes. */
+.app-page .phone-app-grid{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-auto-rows:88px!important;
+  grid-auto-flow:dense!important;
+  gap:10px!important;
+}
+.app-page .phone-app-grid .tumblr-app{
+  grid-column:span 1!important;
+  grid-row:span 1!important;
+  min-height:0!important;
+  padding:12px!important;
+  border-radius:20px!important;
+  background:color-mix(in srgb,var(--paper) 95%,white)!important;
+  box-shadow:0 5px 15px color-mix(in srgb,var(--ink) 5%,transparent)!important;
+}
+.app-page .phone-app-grid .tumblr-app:nth-child(7n+1),
+.app-page .phone-app-grid .tumblr-app:nth-child(7n+5){grid-column:span 2!important}
+.app-page .phone-app-grid .tumblr-app:nth-child(11n+8){grid-column:span 2!important}
+.app-page .phone-app-grid .tumblr-app:before{
+  content:"";
+  position:absolute;
+  right:12px;
+  top:12px;
+  width:24px;
+  height:1px;
+  background:color-mix(in srgb,var(--accent) 14%,transparent);
+}
+.app-page .phone-app-grid .app-visual{
+  width:36px!important;height:36px!important;min-height:36px!important;
+  border-radius:12px!important;
+  background:color-mix(in srgb,var(--accent) 7%,var(--paper))!important;
+}
+.app-page .phone-app-grid .app-copy b{font-size:12px!important;letter-spacing:.01em!important}
+.app-page .phone-app-grid .app-copy small{font-size:7px!important;opacity:.72!important}
+
+/* 5. First page gets a little structure without filling it with decoration. */
+.today-page{
+  background-image:
+    linear-gradient(90deg,transparent 0 49.88%,color-mix(in srgb,var(--accent) 5%,transparent) 49.88% 50%,transparent 50%),
+    linear-gradient(0deg,transparent 0 62%,color-mix(in srgb,var(--accent) 5%,transparent) 62% 62.1%,transparent 62.1%)!important;
+}
+.today-page .tumblr-brand{border-bottom:1px solid color-mix(in srgb,var(--accent) 12%,transparent)!important}
+.today-page .home-profile-chip{padding-bottom:7px!important;border-bottom:1px solid color-mix(in srgb,var(--accent) 8%,transparent)!important}
+
+/* Slightly smaller dock + dots makes the launcher feel less bottom-heavy. */
+.phone-dock{height:64px!important;left:20px!important;right:20px!important;border-radius:24px!important}
+.home-page-dots{bottom:calc(82px + env(safe-area-inset-bottom))!important}
+
+@media(max-width:480px){
+  .app-page .phone-app-grid{grid-auto-rows:82px!important;gap:9px!important}
+  .today-page .tumblr-brand h1{font-size:42px!important}
+}

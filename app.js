@@ -2,7 +2,7 @@ const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const KEY = 'elsewhere-state';
 const LEGACY_KEYS = ['elsewhere-v242-state','elsewhere-v24-state','elsewhere-v23-state','elsewhere-v22-state','elsewhere-v21-state','elsewhere-v20-state'];
-const VERSION = '2.5.3-viewport-linework';
+const VERSION = '2.5.4-crisp-smooth-home';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -727,18 +727,8 @@ function ensureIOSTouchGestures(){
     g.x=t.clientX;g.y=t.clientY;
     const dx=g.x-g.sx,dy=g.y-g.sy,adx=Math.abs(dx),ady=Math.abs(dy);
 
-    // Home launcher: JS-driven horizontal paging so iOS cannot swallow the swipe.
-    if(current==='home'&&!S.locked&&adx>32&&adx>ady*1.12){
-      const hp=document.querySelector('#homePages');
-      const pages=[...document.querySelectorAll('.home-page')];
-      if(hp&&pages.length){
-        e.preventDefault();
-        const next=Math.max(0,Math.min(pages.length-1,homePage+(dx<0?1:-1)));
-        if(next!==homePage){homePage=next;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'});updateHomeDots?.();}
-        g.done=true;
-      }
-      return;
-    }
+    // Horizontal launcher paging is handled natively by the scroll-snap container.
+    // Keeping JS out of this path avoids double-scrolling / jitter on iOS Safari.
 
     if(ady>42&&ady>adx*1.12){
       // Pull down from the upper part of Elsewhere to open notifications.

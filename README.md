@@ -48,3 +48,11 @@ Start command: `npm start`
 - Explicitly suppresses the legacy drawn status bar so it cannot overlap iOS' real status bar.
 - Keeps dock and page dots inside the live viewport/safe area.
 - Adds restrained CSS-only editorial linework/circles to the Today home page so the open space feels intentional without adding images.
+
+## v2.5.4
+- Removed the soft blur overlay from launcher pages for a sharper first page.
+- Replaced JS-driven horizontal swiping with native iOS scroll-snap to stop double-scroll jitter.
+- Removed expensive live backdrop blur from dock, dots, headers and overlays for smoother mobile performance.
+- Simplified app open/close animations to fast translate/fade without blur/scale.
+- Rebalanced page 2 into a dense two-size bento grid with no awkward vertical gaps.
+- Added restrained CSS line structure to the first page without adding images.
