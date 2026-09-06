@@ -1,9 +1,9 @@
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-const KEY = 'elsewhere-v24-state';
-const LEGACY_KEY = 'elsewhere-v23-state';
+const KEY = 'elsewhere-v242-state';
+const LEGACY_KEY = 'elsewhere-v24-state';
 const LEGACY_KEY_2 = 'elsewhere-v21-state';
-const VERSION = '2.4.1-ios-touch-hotfix';
+const VERSION = '2.4.3-thomas-render-fix';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -103,7 +103,7 @@ function load(){
 let S=load(), current='home', currentArg=null, timer=null, todoTab='todo', homePage=0, homeEdit=false, dragState=null, shadeOpen=false;
 function save(){ localStorage.setItem(KEY,JSON.stringify(S)); }
 function ch(id){ return S.characters.find(x=>x.id===id); }
-function avatar(c,cls=''){ return `<div class="avatar ${cls}" style="--av:${c.color||'#9c7881'}">${esc(c.initial||c.name?.[0]||'?')}</div>`; }
+function avatar(c,cls=''){ c=c||{name:S?.settings?.assistantName||'Thomas',initial:'T',color:'#9c7881'}; return `<div class="avatar ${cls}" style="--av:${c.color||'#9c7881'}">${esc(c.initial||c.name?.[0]||'?')}</div>`; }
 function applyTheme(){
   const t=themes[S.theme]||themes.blush; for(const [k,v] of Object.entries(t)) document.documentElement.style.setProperty('--'+k,v);
   const c=S.custom||{}; if(c.accent)document.documentElement.style.setProperty('--accent',c.accent); if(c.paper)document.documentElement.style.setProperty('--paper',c.paper); if(c.ink)document.documentElement.style.setProperty('--ink',c.ink);
@@ -295,7 +295,7 @@ function view(k,arg){
 
 function thomasView(){
   const p=S.settings.thomasProfile;
-  return `${header(S.settings.assistantName,'always here for you.','<button class="text-action" data-thomas-style>语气</button><button class="text-action" data-thomas-clear>清空</button>')}<main class="chat-page thomas-page"><div class="assistant-intro"><div class="thomas-portrait">T</div><div><b>${esc(S.settings.assistantName)}</b><p>聊天陪伴 · 生活助手 · 会慢慢学会你的偏好</p></div></div><div class="thomas-tone-chip">温柔 ${p.warmth} · 毒舌 ${p.sass} · 主动 ${p.initiative} · ${p.learn?'正在学习你的反馈':'固定语气'}</div><div class="quick-row"><button data-thomas-quick="帮我看看今天还有什么没做">整理今天</button><button data-thomas-quick="帮我记录一下今天的心情">记录心情</button><button data-thomas-quick="给我一个25分钟专注建议">开始专注</button></div><div class="messages" id="thomasMessages">${S.thomas.map(m=>bubble(m,null)).join('')}</div></main><div class="composer"><textarea id="thomasInput" placeholder="和 Thomas 聊聊，或直接告诉他‘少一点客服腔’…"></textarea><button class="send-text" data-thomas-send>发送</button></div>`;
+  return `${header(S.settings.assistantName,'always here for you.','<button class="text-action" data-thomas-style>语气</button><button class="text-action" data-thomas-clear>清空</button>')}<main class="chat-page thomas-page"><div class="assistant-intro"><div class="thomas-portrait">T</div><div><b>${esc(S.settings.assistantName)}</b><p>聊天陪伴 · 生活助手 · 会慢慢学会你的偏好</p></div></div><div class="thomas-tone-chip">温柔 ${p.warmth} · 毒舌 ${p.sass} · 主动 ${p.initiative} · ${p.learn?'正在学习你的反馈':'固定语气'}</div><div class="quick-row"><button data-thomas-quick="帮我看看今天还有什么没做">整理今天</button><button data-thomas-quick="帮我记录一下今天的心情">记录心情</button><button data-thomas-quick="给我一个25分钟专注建议">开始专注</button></div><div class="messages" id="thomasMessages">${S.thomas.map(m=>bubble(m,m.role==='assistant'?{name:S.settings.assistantName,initial:'T',color:'#9c7881'}:null)).join('')}</div></main><div class="composer"><textarea id="thomasInput" placeholder="和 Thomas 聊聊，或直接告诉他‘少一点客服腔’…"></textarea><button class="send-text" data-thomas-send>发送</button></div>`;
 }
 function bubble(m,c){const body=m.type==='voice'?`<button class="voice-bubble" data-play-voice="${m.id}">▶ ${m.seconds||Math.max(2,Math.min(18,Math.ceil((m.text||'').length/4)))}" <span>${esc(m.text||'语音消息')}</span></button>`:`<div class="bubble">${esc(m.text)}</div>`;return `<div class="msg ${m.role==='user'?'mine':''}">${m.role==='assistant'?avatar(c,'sm'):''}<div>${body}<small>${fmtTime(m.ts)}</small></div></div>`}
 function messagesView(arg){
@@ -719,11 +719,28 @@ function ensureIOSTouchGestures(){
       }
     }
   };
-  const end=()=>{g=null};
+  const end=e=>{
+    if(!g){return;}
+    const dx=g.x-g.sx,dy=g.y-g.sy;
+    const moved=Math.hypot(dx,dy);
+    const opener=g.target?.closest?.('[data-open]');
+    // iOS Safari can suppress the synthetic click after a touch gesture listener.
+    // Treat a short, stationary touch as a real tap and navigate here directly.
+    if(!g.done && moved<18 && opener && !(homeEdit&&opener.closest('.phone-app-grid'))){
+      const target=opener.dataset.open;
+      g.done=true;
+      if(e.cancelable)e.preventDefault();
+      e.stopPropagation?.();
+      open(target);
+      // Ignore the delayed synthetic click Safari may emit afterwards.
+      window.__elsewhereIgnoreClickUntil=Date.now()+450;
+    }
+    g=null;
+  };
   document.addEventListener('touchstart',start,{passive:true,capture:true});
   document.addEventListener('touchmove',move,{passive:false,capture:true});
-  document.addEventListener('touchend',end,{passive:true,capture:true});
-  document.addEventListener('touchcancel',end,{passive:true,capture:true});
+  document.addEventListener('touchend',end,{passive:false,capture:true});
+  document.addEventListener('touchcancel',()=>{g=null},{passive:true,capture:true});
 }
 function updateHomeDots(){
   document.querySelectorAll('.home-page-dots button').forEach((d,i)=>d.classList.toggle('active',i===homePage));
@@ -733,7 +750,7 @@ function bind(){
   ensureIOSTouchGestures();
   // iOS Safari: delegated navigation keeps widgets/dock tappable even after touch/long-press handlers.
   const phoneRoot=$('.phone');
-  phoneRoot?.addEventListener('click',e=>{const x=e.target.closest?.('[data-open]');if(!x)return;if(homeEdit&&x.closest('.phone-app-grid'))return;e.preventDefault();e.stopPropagation();open(x.dataset.open)},true);
+  phoneRoot?.addEventListener('click',e=>{if((window.__elsewhereIgnoreClickUntil||0)>Date.now()){e.preventDefault();e.stopPropagation();return;}const x=e.target.closest?.('[data-open]');if(!x)return;if(homeEdit&&x.closest('.phone-app-grid'))return;e.preventDefault();e.stopPropagation();open(x.dataset.open)},true);
   phoneOSBind();
   $$('[data-unlock]').forEach(x=>x.onclick=()=>{S.locked=false;persistRender()});
   $$('[data-home]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();open('home')});
