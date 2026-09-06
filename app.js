@@ -3,7 +3,7 @@ const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const KEY = 'elsewhere-v24-state';
 const LEGACY_KEY = 'elsewhere-v23-state';
 const LEGACY_KEY_2 = 'elsewhere-v21-state';
-const VERSION = '2.4.0-mobile-gestures';
+const VERSION = '2.4.1-ios-touch-hotfix';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -612,18 +612,7 @@ function phoneOSBind(){
   $('[data-notif-read]')?.addEventListener('click',()=>{S.notifications.forEach(n=>n.read=true);save();render()});
   $('[data-notif-clear]')?.addEventListener('click',()=>{S.notifications=[];save();render()});
   const lockPages=$('#lockPages'); if(lockPages){lockPages.addEventListener('scroll',()=>{const i=Math.round(lockPages.scrollLeft/(lockPages.clientWidth||1));$$('.lock-dots i').forEach((d,j)=>d.classList.toggle('active',i===j))},{passive:true})}
-  let gesture=null;
-  const gestureStart=(x,y)=>{const r=phone.getBoundingClientRect();gesture={x,y,top:y-r.top<105,bottom:r.bottom-y<150,t:Date.now()};};
-  const gestureEnd=(x,y)=>{if(!gesture)return;const dx=x-gesture.x,dy=y-gesture.y,vertical=Math.abs(dy)>Math.abs(dx)*1.15;
-    if(gesture.top&&dy>54&&vertical){shadeOpen=true;$('#notificationShade')?.classList.add('open')}
-    else if(S.locked&&dy<-54&&vertical){S.locked=false;persistRender()}
-    else if(gesture.bottom&&dy<-54&&vertical&&current!=='home'){open('home')}
-    gesture=null;
-  };
-  phone.addEventListener('pointerdown',e=>gestureStart(e.clientX,e.clientY),{passive:true});
-  phone.addEventListener('pointerup',e=>gestureEnd(e.clientX,e.clientY),{passive:true});
-  phone.addEventListener('touchstart',e=>{const t=e.touches[0];if(t)gestureStart(t.clientX,t.clientY)},{passive:true});
-  phone.addEventListener('touchend',e=>{const t=e.changedTouches[0];if(t)gestureEnd(t.clientX,t.clientY)},{passive:true});
+  // v2.4.1: gestures are handled globally in ensureIOSTouchGestures().
   $$('.phone-app-grid [data-app-key]').forEach(el=>{
     let hold=0, ghost=null, sx=0, sy=0, moved=false;
     const key=el.dataset.appKey;
@@ -684,8 +673,64 @@ function phoneOSBind(){
   });
 
 }
+let iosTouchGesturesBound=false;
+function ensureIOSTouchGestures(){
+  if(iosTouchGesturesBound)return;
+  iosTouchGesturesBound=true;
+  let g=null;
+  const ignored=el=>!!el?.closest?.('input,textarea,select,[contenteditable="true"],.ew-modal-wrap,.ew-dialog,.ew-sheet');
+  const start=e=>{
+    const t=e.touches?.[0]; if(!t)return;
+    const phone=document.querySelector('.phone'); if(!phone||!phone.contains(e.target)||ignored(e.target))return;
+    const r=phone.getBoundingClientRect();
+    g={sx:t.clientX,sy:t.clientY,x:t.clientX,y:t.clientY,phoneRect:r,target:e.target,done:false,
+       top:(t.clientY-r.top)<Math.max(120,r.height*.18), lower:(r.bottom-t.clientY)<Math.max(220,r.height*.42)};
+  };
+  const move=e=>{
+    if(!g||g.done)return;
+    const t=e.touches?.[0]; if(!t)return;
+    g.x=t.clientX;g.y=t.clientY;
+    const dx=g.x-g.sx,dy=g.y-g.sy,adx=Math.abs(dx),ady=Math.abs(dy);
+
+    // Home launcher: JS-driven horizontal paging so iOS cannot swallow the swipe.
+    if(current==='home'&&!S.locked&&adx>32&&adx>ady*1.12){
+      const hp=document.querySelector('#homePages');
+      const pages=[...document.querySelectorAll('.home-page')];
+      if(hp&&pages.length){
+        e.preventDefault();
+        const next=Math.max(0,Math.min(pages.length-1,homePage+(dx<0?1:-1)));
+        if(next!==homePage){homePage=next;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'});updateHomeDots?.();}
+        g.done=true;
+      }
+      return;
+    }
+
+    if(ady>42&&ady>adx*1.12){
+      // Pull down from the upper part of Elsewhere to open notifications.
+      if(g.top&&dy>0&&!S.locked){
+        e.preventDefault();shadeOpen=true;document.querySelector('#notificationShade')?.classList.add('open');g.done=true;return;
+      }
+      // Lock screen / any app: swipe up decisively.
+      if(dy<0){
+        if(S.locked){e.preventDefault();S.locked=false;g.done=true;persistRender();return;}
+        if(current!=='home'&&(g.lower||ady>82)){
+          e.preventDefault();g.done=true;open('home');return;
+        }
+      }
+    }
+  };
+  const end=()=>{g=null};
+  document.addEventListener('touchstart',start,{passive:true,capture:true});
+  document.addEventListener('touchmove',move,{passive:false,capture:true});
+  document.addEventListener('touchend',end,{passive:true,capture:true});
+  document.addEventListener('touchcancel',end,{passive:true,capture:true});
+}
+function updateHomeDots(){
+  document.querySelectorAll('.home-page-dots button').forEach((d,i)=>d.classList.toggle('active',i===homePage));
+}
 function bind(){
   ensureHomeNavigation();
+  ensureIOSTouchGestures();
   // iOS Safari: delegated navigation keeps widgets/dock tappable even after touch/long-press handlers.
   const phoneRoot=$('.phone');
   phoneRoot?.addEventListener('click',e=>{const x=e.target.closest?.('[data-open]');if(!x)return;if(homeEdit&&x.closest('.phone-app-grid'))return;e.preventDefault();e.stopPropagation();open(x.dataset.open)},true);

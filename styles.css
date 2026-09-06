@@ -449,3 +449,16 @@ body{background:linear-gradient(140deg,#d9c7cb,#eadde0 45%,#cbbabd);}
 .ew-notification-banner.show{transform:translateY(0);opacity:1}.ew-notification-banner small{font:7px/1.2 sans-serif;letter-spacing:.16em;color:var(--accent)}.ew-notification-banner b{font:11px/1.45 Georgia,serif;font-weight:600}
 .home-handle{position:fixed!important;z-index:90;left:50%!important;bottom:max(8px,env(safe-area-inset-bottom))!important;transform:translateX(-50%);width:94px!important;height:24px!important;background:transparent!important}.home-handle span{display:block;width:46px;height:4px;margin:auto;border-radius:99px;background:color-mix(in srgb,var(--ink) 28%,transparent)}
 @media(max-width:480px){.notification-shade{padding-top:max(18px,env(safe-area-inset-top))}.phone-dock{bottom:max(14px,env(safe-area-inset-bottom))!important}}
+
+
+/* v2.4.1 — iOS touch routing: allow launcher swipes through widgets/apps */
+.home-pages,.home-page{touch-action:pan-x pan-y!important;-webkit-overflow-scrolling:touch!important}
+.home:not(.home-edit) .page-widget-zone .home-widget,
+.home:not(.home-edit) .phone-app-grid .tumblr-app,
+.home:not(.home-edit) .home-profile-chip,
+.home:not(.home-edit) .page-add-widget{touch-action:pan-x pan-y!important}
+.home.home-edit .page-widget-zone .home-widget,
+.home.home-edit .phone-app-grid .tumblr-app{touch-action:none!important}
+.phone{overscroll-behavior:none;-webkit-user-select:none;user-select:none}
+.page input,.page textarea,.page select,[contenteditable="true"]{-webkit-user-select:text;user-select:text}
+.home-handle{pointer-events:auto!important;touch-action:none!important}

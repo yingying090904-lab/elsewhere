@@ -18,3 +18,11 @@ npm.cmd install
 npm.cmd start
 ```
 Open `http://localhost:3000`.
+
+
+## v2.4.1 iOS touch hotfix
+- Global capture-phase touch handling for Safari/PWA.
+- Horizontal home-page swipe works through widgets and app icons.
+- Swipe up from app pages returns Home.
+- Pull down from upper area opens notifications.
+- Fixes touch-action conflicts that blocked horizontal gestures on iPhone.
