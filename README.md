@@ -1,10 +1,17 @@
-# Elsewhere v2.6.3 — Layout + Safe Area Fix
+# Elsewhere v2.7 — Home Studio
 
-- Cleaner Chinese subtitle typography.
-- Core widgets split between page 1 and page 2.
-- Page 2+ uses a strict normal four-column launcher grid.
-- First page shows four shortcuts only.
-- Thomas/app headers now own the iOS safe area and no longer sit under the status bar.
-- Strong cache busting for CSS/JS and a new service worker cache.
+- Rebuilt two-page launcher inspired by custom mini-phone / widget layouts.
+- Native horizontal paging, uniform app icons, balanced widgets across Home 01 / Home 02.
+- Long-press edit mode with obvious drag ghost, drop targets and folder merge.
+- Drag one app onto the center of another to create a folder; rename folders inside the folder sheet.
+- Widget delete + edit controls work directly in edit mode.
+- Add Page, Add Widget, Wallpaper Studio and New Folder live in one edit palette.
+- Wallpaper Studio supports current-page, global wallpaper, clearing page override and restoring theme background.
+- Gemini + persistent chats from v2.5+ retained.
 
-Render variables: `GEMINI_API_KEY` (and optional `GEMINI_MODEL`).
+Run:
+```powershell
+npm.cmd install
+npm.cmd start
+```
+Open http://localhost:3000

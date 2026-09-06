@@ -1,4 +1,4 @@
-const CACHE='elsewhere-v263-layout-safearea';
+const CACHE='elsewhere-v27-home-studio';
 const ASSETS=['/','/index.html','/styles.css?v=263','/app.js?v=263','/manifest.json','/icon.svg'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE&&k.startsWith('elsewhere-')).map(k=>caches.delete(k))))])));

@@ -2,7 +2,7 @@ const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const KEY = 'elsewhere-state';
 const LEGACY_KEYS = ['elsewhere-v242-state','elsewhere-v24-state','elsewhere-v23-state','elsewhere-v22-state','elsewhere-v21-state','elsewhere-v20-state'];
-const VERSION = '2.6.2-pinterest-pages';
+const VERSION = '2.7.0-home-studio';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -23,7 +23,7 @@ const themes = {
 const defaultState = {
   theme:'blush', locked:true, owner:{name:'Ann',handle:'ann',bio:'collecting little things from ordinary days.',status:'somewhere between busy and daydreaming.',avatar:'',banner:'',tags:['scrapbook','study']}, wallpaper:'',
   social:{userId:'u-'+uid(),following:[],feed:[],lastSync:0},
-  custom:{title:'Elsewhere',subtitle:'此刻以外',tagline:'A SMALL PHONE, A BIGGER YOU',quote:'same sky, different dreams.',accent:'',paper:'',ink:'',radius:28,font:'serif',density:'cozy',iconShape:'soft',appOrder:[],hiddenApps:[],aliases:{},cardOpacity:88,blur:22,shadow:16,grain:24,spacing:18,appSize:58,dockOpacity:82,borderStrength:18,titleScale:100,wallpaperTint:14, iconStyle:'star', showHomeAvatar:true, clickEffect:'sparkle', effectStrength:2, compactApps:true, pageWallpapers:{}, folders:[], homeLayout:[], homeWidgets:[{id:'hw-clock',type:'clock',page:0,size:'1x1'},{id:'hw-todo',type:'todo',page:0,size:'1x1'},{id:'hw-thomas',type:'thomas',page:0,size:'2x1'},{id:'hw-weather',type:'weather',page:1,size:'2x1'},{id:'hw-study',type:'study',page:1,size:'2x1'}],homeLayoutRevision:'v262'},
+  custom:{title:'Elsewhere',subtitle:'此刻以外',tagline:'A SMALL PHONE, A BIGGER YOU',quote:'same sky, different dreams.',accent:'',paper:'',ink:'',radius:28,font:'serif',density:'cozy',iconShape:'soft',appOrder:[],hiddenApps:[],aliases:{},cardOpacity:88,blur:22,shadow:16,grain:24,spacing:18,appSize:58,dockOpacity:82,borderStrength:18,titleScale:100,wallpaperTint:14, iconStyle:'star', showHomeAvatar:true, clickEffect:'sparkle', effectStrength:2, compactApps:true, pageWallpapers:{}, folders:[], homeLayout:[], homeWidgets:[{id:'hw-clock',type:'clock',page:0,size:'1x1'},{id:'hw-todo',type:'todo',page:0,size:'1x1'},{id:'hw-thomas',type:'thomas',page:0,size:'2x1'},{id:'hw-weather',type:'weather',page:1,size:'2x1'},{id:'hw-study',type:'study',page:1,size:'2x1'}],homeLayoutRevision:'v27', homePageCount:2},
   weather:{city:'Elsewhere',temp:'29',desc:'大毛毛雨 · 微风',low:'26',high:'30',loading:false},
   characters:[
     {id:'victor',name:'Victor',initial:'V',relation:'close friend',status:'last seen just now',color:'#92727b',personality:'敏锐、克制、有点坏心眼，会记住细节。',style:'自然短句，偶尔很轻地调侃。'},
@@ -87,6 +87,7 @@ function load(){
     out.custom=Object.assign(clone(defaultState.custom),out.custom||{});
     delete out.custom.desktopEdit; delete out.custom.stickers;
     out.custom.pageWallpapers ||= {}; out.custom.folders ||= []; out.custom.homeLayout ||= []; out.custom.homeWidgets ||= clone(defaultState.custom.homeWidgets); out.custom.homeWidgets=out.custom.homeWidgets.map(w=>Object.assign({page:0,size:'2x1'},w));
+    out.custom.homePageCount=Math.max(2,Number(out.custom.homePageCount)||2);
     // v2.6.2: rebalance the stock widgets across the first two pages once.
     // Custom widgets keep their page; only the five built-in starter widgets are migrated.
     if(out.custom.homeLayoutRevision!=='v262'){
@@ -116,13 +117,14 @@ function load(){
 }
 let S=load(), current='home', currentArg=null, timer=null, todoTab='todo', homePage=0, homeEdit=false, dragState=null, shadeOpen=false, calendarOffset=0, lockStage='welcome', passcodeBuffer='';
 S.locked=true;
-// v2.6.3 one-time home cleanup: split the core widgets over the first two pages.
-if(!S.custom.v263WidgetSplit){
+// v2.7 one-time launcher cleanup: keep starter widgets balanced across the first two pages.
+if(!S.custom.v27HomeStudio){
   (S.custom.homeWidgets||[]).forEach(w=>{
     if(['clock','todo','thomas'].includes(w.type)) w.page=0;
     if(['weather','study'].includes(w.type)) w.page=1;
   });
-  S.custom.v263WidgetSplit=true;
+  S.custom.homePageCount=Math.max(2,Number(S.custom.homePageCount)||2);
+  S.custom.v27HomeStudio=true;
   save();
 }
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){console.warn('Elsewhere save failed',e);} }
@@ -234,22 +236,22 @@ const HOME_WIDGET_TYPES = {
 };
 function homeWidgetHtml(w){
   const due=S.todos.filter(x=>!x.done).length;
-  const note=S.notes[0];
-  const cd=(S.countdowns||[])[0];
-  const mood=(S.moods||[])[0];
+  const note=S.notes[0], cd=(S.countdowns||[])[0], mood=(S.moods||[])[0];
   const common=`data-home-widget-id="${esc(w.id)}" data-widget-type="${esc(w.type)}" data-widget-page="${Number(w.page)||0}" data-widget-size="${esc(w.size||'2x1')}"`;
-  if(w.type==='clock') return `<div class="home-widget hw-clock" ${common}><small>NOW</small><b>${fmtTime()}</b><span>${new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'})}</span></div>`;
-  if(w.type==='thomas') return `<button class="home-widget hw-thomas" ${common} data-open="thomas"><small>THOMAS</small><b>${esc(S.settings.assistantName)}</b><span>${esc((S.notifications?.[0]?.text||'I am here.').slice(0,42))}</span></button>`;
-  if(w.type==='weather') return `<button class="home-widget hw-weather" ${common} data-open="weather"><small>WEATHER</small><b>${esc(S.weather.temp)}°</b><span>${esc(S.weather.city)} · ${esc(S.weather.desc)}</span></button>`;
-  if(w.type==='todo') return `<button class="home-widget hw-todo" ${common} data-open="todo"><small>TODAY</small><b>${due}</b><span>${due?'things left':'all clear'}</span></button>`;
-  if(w.type==='study') return `<button class="home-widget hw-study" ${common} data-open="study"><small>STUDY</small><b>${Math.floor(S.study.seconds/60)} min</b><span>${S.study.running?'focus running':'ready when you are'}</span></button>`;
-  if(w.type==='calendar') return `<button class="home-widget hw-calendar" ${common} data-open="calendar"><small>CALENDAR</small><b>${new Date().getDate()}</b><span>${S.events.filter(e=>e.date===today()).length} events today</span></button>`;
-  if(w.type==='profile') return `<button class="home-widget hw-profile" ${common} data-open="profile">${S.owner.avatar?`<img src="${esc(S.owner.avatar)}" alt="">`:`<i>${esc((S.owner.name||'E')[0])}</i>`}<div><small>PROFILE</small><b>${esc(S.owner.name||'Elsewhere user')}</b><span>@${esc(S.owner.handle||'elsewhere')}</span></div></button>`;
-  if(w.type==='note') return `<button class="home-widget hw-note" ${common} data-open="notes"><small>PINNED NOTE</small><b>${esc(note?.title||'untitled')}</b><span>${esc((note?.text||'Write something small.').slice(0,48))}</span></button>`;
-  if(w.type==='countdown') return `<button class="home-widget hw-countdown" ${common} data-open="countdown"><small>COUNTDOWN</small><b>${cd?Math.max(0,Math.ceil((new Date(cd.date)-new Date())/86400000)):'—'}</b><span>${esc(cd?.title||'nothing counting down')}</span></button>`;
-  if(w.type==='mood') return `<button class="home-widget hw-mood" ${common} data-open="mood"><small>MOOD</small><b>${mood?'★'.repeat(Math.max(1,Math.min(5,mood.value))):'—'}</b><span>${esc(mood?.note||'how are you feeling?')}</span></button>`;
-  if(w.type==='quote') return `<div class="home-widget hw-quote" ${common}><small>ELSEWHERE</small><b>“${esc(S.custom.quote||'same sky, different dreams.')}”</b></div>`;
-  if(w.type==='custom') return `<div class="home-widget hw-custom" ${common}><small>${esc(w.title||'LITTLE NOTE')}</small><b>${esc(w.text||'something of your own')}</b></div>`;
+  const controls=homeEdit?`<div class="widget-edit-controls"><button type="button" data-widget-config="${esc(w.id)}" aria-label="编辑组件">•••</button><button type="button" data-widget-delete="${esc(w.id)}" aria-label="删除组件">×</button></div>`:'';
+  const frame=(cls,body,open='')=>`<article class="home-widget ${cls}" ${common} ${open?`data-open="${open}" role="button" tabindex="0"`:''}>${body}${controls}</article>`;
+  if(w.type==='clock') return frame('hw-clock',`<small>NOW</small><b>${fmtTime()}</b><span>${new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'})}</span>`);
+  if(w.type==='thomas') return frame('hw-thomas',`<small>THOMAS</small><b>${esc(S.settings.assistantName)}</b><span>${esc((S.notifications?.[0]?.text||'I am here.').slice(0,42))}</span>`,'thomas');
+  if(w.type==='weather') return frame('hw-weather',`<small>WEATHER</small><b>${esc(S.weather.temp)}°</b><span>${esc(S.weather.city)} · ${esc(S.weather.desc)}</span>`,'weather');
+  if(w.type==='todo') return frame('hw-todo',`<small>TODAY</small><b>${due}</b><span>${due?'things left':'all clear'}</span>`,'todo');
+  if(w.type==='study') return frame('hw-study',`<small>STUDY</small><b>${Math.floor(S.study.seconds/60)} min</b><span>${S.study.running?'focus running':'ready when you are'}</span>`,'study');
+  if(w.type==='calendar') return frame('hw-calendar',`<small>CALENDAR</small><b>${new Date().getDate()}</b><span>${S.events.filter(e=>e.date===today()).length} events today</span>`,'calendar');
+  if(w.type==='profile') return frame('hw-profile',`${S.owner.avatar?`<img src="${esc(S.owner.avatar)}" alt="">`:`<i>${esc((S.owner.name||'E')[0])}</i>`}<div><small>PROFILE</small><b>${esc(S.owner.name||'Elsewhere user')}</b><span>@${esc(S.owner.handle||'elsewhere')}</span></div>`,'profile');
+  if(w.type==='note') return frame('hw-note',`<small>PINNED NOTE</small><b>${esc(note?.title||'untitled')}</b><span>${esc((note?.text||'Write something small.').slice(0,48))}</span>`,'notes');
+  if(w.type==='countdown') return frame('hw-countdown',`<small>COUNTDOWN</small><b>${cd?Math.max(0,Math.ceil((new Date(cd.date)-new Date())/86400000)):'—'}</b><span>${esc(cd?.title||'nothing counting down')}</span>`,'countdown');
+  if(w.type==='mood') return frame('hw-mood',`<small>MOOD</small><b>${mood?'★'.repeat(Math.max(1,Math.min(5,mood.value))):'—'}</b><span>${esc(mood?.note||'how are you feeling?')}</span>`,'mood');
+  if(w.type==='quote') return frame('hw-quote',`<small>ELSEWHERE</small><b>“${esc(S.custom.quote||'same sky, different dreams.')}”</b>`);
+  if(w.type==='custom') return frame('hw-custom',`<small>${esc(w.title||'LITTLE NOTE')}</small><b>${esc(w.text||'something of your own')}</b>`);
   return '';
 }
 
@@ -304,32 +306,45 @@ function bindWidgetControls(root=document){
   $('[data-widget-library-open]',root)?.addEventListener('click',()=>widgetLibrarySheet(homePage));
   $('[data-widget-manager-page]',root)?.addEventListener('change',e=>{const v=e.target.value; const old=root.querySelector('.widget-manager'); if(old){old.replaceWith(htmlToElement(widgetManagerHtml(v))); bindWidgetControls(root);}});
 }
+function chooseImageFile(onData){
+  const input=document.createElement('input'); input.type='file'; input.accept='image/*';
+  input.onchange=()=>{const f=input.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>onData(r.result);r.readAsDataURL(f)};
+  input.click();
+}
+function wallpaperStudio(page=homePage){
+  const wrap=document.createElement('div');wrap.className='ew-modal-wrap wallpaper-studio-wrap';
+  const hasPage=!!S.custom.pageWallpapers?.[page], hasGlobal=!!S.wallpaper;
+  wrap.innerHTML=`<div class="ew-modal-scrim" data-wallpaper-close></div><section class="ew-dialog ew-sheet wallpaper-studio"><div class="sheet-handle"></div><div class="sheet-title"><div><small>HOME STUDIO</small><h3>Wallpaper</h3><p>${page===0?'Home 01':`Home ${String(page+1).padStart(2,'0')}`}</p></div><button data-wallpaper-close>×</button></div><div class="wallpaper-actions"><button data-wallpaper-page><b>这一页</b><span>只更换当前主页壁纸</span></button><button data-wallpaper-global><b>所有页面</b><span>更换 Elsewhere 默认壁纸</span></button><button data-wallpaper-clear-page ${hasPage?'':'disabled'}><b>清除本页壁纸</b><span>恢复默认背景</span></button><button data-wallpaper-clear-all ${hasPage||hasGlobal?'':'disabled'}><b>恢复主题背景</b><span>清除所有自定义壁纸</span></button></div></section>`;
+  uiLayer().appendChild(wrap);requestAnimationFrame(()=>wrap.classList.add('show'));
+  const close=()=>{wrap.classList.remove('show');setTimeout(()=>wrap.remove(),140)};
+  wrap.querySelectorAll('[data-wallpaper-close]').forEach(x=>x.onclick=close);
+  $('[data-wallpaper-page]',wrap)?.addEventListener('click',()=>chooseImageFile(data=>{S.custom.pageWallpapers[page]=data;save();close();render();uiToast('已更换这一页的壁纸')}));
+  $('[data-wallpaper-global]',wrap)?.addEventListener('click',()=>chooseImageFile(data=>{S.wallpaper=data;save();applyTheme();close();render();uiToast('默认壁纸已更新')}));
+  $('[data-wallpaper-clear-page]',wrap)?.addEventListener('click',()=>{delete S.custom.pageWallpapers[page];save();close();render();uiToast('本页壁纸已清除')});
+  $('[data-wallpaper-clear-all]',wrap)?.addEventListener('click',()=>{S.wallpaper='';S.custom.pageWallpapers={};save();applyTheme();close();render();uiToast('已恢复主题背景')});
+}
+function homeEditPaletteHtml(){
+  return `<div class="home-edit-palette"><button data-home-add-page><span>＋</span><b>增加页面</b></button><button data-widget-library-open><span>▦</span><b>添加组件</b></button><button data-home-wallpaper><span>◫</span><b>更换壁纸</b></button><button data-folder-new><span>⊞</span><b>新建文件夹</b></button></div>`;
+}
+
 function htmlToElement(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild}
 
 function home(){
   const now=new Date(), day=now.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
   const layout=ensureHomeLayout().filter(k=>String(k).startsWith('folder:')||!S.custom.hiddenApps.includes(k));
-  const favorites=layout.slice(0,4), rest=layout.slice(4);
-  const pages=[]; for(let i=0;i<rest.length;i+=12) pages.push(rest.slice(i,i+12)); if(!pages.length)pages.push([]);
-  const pageCount=Math.max(pages.length, Math.max(1,...(S.custom.homeWidgets||[]).map(w=>Number(w.page)||0)));
-  while(pages.length<pageCount)pages.push([]);
+  const firstApps=layout.slice(0,8), rest=layout.slice(8);
+  const pages=[]; for(let i=0;i<rest.length;i+=12) pages.push(rest.slice(i,i+12));
+  const minPages=Math.max(2,Number(S.custom.homePageCount)||2);
+  const widgetMax=Math.max(0,...(S.custom.homeWidgets||[]).map(w=>Number(w.page)||0));
+  const totalPages=Math.max(minPages,1+pages.length,widgetMax+1);
+  while(pages.length<totalPages-1) pages.push([]);
   const widgetZone=pi=>`<section class="home-widget-grid page-widget-zone" data-widget-zone="${pi}">${homeWidgetsHtml(pi)}</section>`;
-  const appsPage=(items,label,pi)=>`<section class="home-page app-page" data-app-page="${pi}" ${pageWallpaperStyle(pi)}><div class="page-kicker"><span>${label}</span><div class="page-tools"><button class="page-add-widget" data-widget-library-page="${pi}" aria-label="Add Widget">＋</button>${homeEdit?'<button data-edit-done>完成</button>':''}</div></div>${widgetZone(pi)}<div class="phone-app-grid classic-app-grid">${items.map(homeEntry).join('')}</div>${!items.length&&!pageWidgets(pi).length?'<div class="empty-home-page">拖一个 App 或 Widget 到这里。</div>':''}</section>`;
-  return `<section class="home swipe-home ${homeEdit?'home-edit':''}">
-    <div class="home-pages" id="homePages">
-      <section class="home-page today-page" data-app-page="0" ${pageWallpaperStyle(0)}>
-        <div class="tumblr-statusline"><span>${day}</span><div class="today-tools"><span>elsewhere</span><button class="page-add-widget" data-widget-library-page="0" aria-label="Add Widget">＋</button></div></div>
-        <header class="tumblr-brand"><small>${esc(S.custom.tagline||'A SMALL PHONE, A BIGGER YOU')}</small><h1>${esc(S.custom.title)}</h1><div><p>${esc(S.custom.subtitle)}</p><em>${esc(S.custom.quote)}</em></div></header>
-        ${S.custom.showHomeAvatar?`<button class="home-profile-chip" data-open="profile">${S.owner.avatar?`<img src="${esc(S.owner.avatar)}" alt="">`:`<span>${esc((S.owner.name||'E')[0])}</span>`}<div><b>${esc(S.owner.name||'Elsewhere user')}</b><small>@${esc(S.owner.handle||'elsewhere')}</small></div></button>`:''}
-        ${widgetZone(0)}
-        <section class="home-shortcuts"><header><small>DAILY SHORTCUTS</small><i></i><span>${homeEdit?'drag to arrange':'hold to edit'}</span></header><div class="phone-app-grid classic-app-grid home-favorite-grid">${favorites.map(homeEntry).join('')}</div></section>
-      </section>
-      ${pages.map((p,i)=>appsPage(p,`home · ${String(i+2).padStart(2,'0')}`,i+1)).join('')}
-    </div>
-    <div class="home-page-dots" aria-label="主页分页">${[null,...pages].map((_,i)=>`<button data-home-dot="${i}" class="${i===homePage?'active':''}" aria-label="第 ${i+1} 页"></button>`).join('')}</div>
-    ${homeEdit?`<div class="home-edit-bar"><button data-widget-library-open>＋ Widget</button><button data-folder-new>＋ 文件夹</button><button data-page-wallpaper>壁纸</button><button data-edit-done>完成</button></div>`:''}
-    <nav class="tumblr-dock text-dock phone-dock"><button data-open="messages">消息</button><button data-open="thomas">Thomas</button><button data-open="social">社交</button><button data-open="profile">我</button></nav>
-  </section>`;
+  const appGrid=(items,extra='')=>`<div class="phone-app-grid classic-app-grid ${extra}">${items.map(homeEntry).join('')}</div>`;
+  const editTop=homeEdit?`<button class="home-edit-done" data-edit-done>完成</button>`:'';
+  const pageShell=(pi,inner)=>`<section class="home-page ${pi===0?'today-page':'app-page'}" data-app-page="${pi}" ${pageWallpaperStyle(pi)}>${inner}</section>`;
+  const first=pageShell(0,`<div class="tumblr-statusline"><span>${day}</span><div class="today-tools"><span>elsewhere</span><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${editTop}</div></div><header class="tumblr-brand"><small>${esc(S.custom.tagline||'A SMALL PHONE, A BIGGER YOU')}</small><h1>${esc(S.custom.title)}</h1><div><p>${esc(S.custom.subtitle)}</p><em>${esc(S.custom.quote)}</em></div></header>${S.custom.showHomeAvatar?`<button class="home-profile-chip" data-open="profile">${S.owner.avatar?`<img src="${esc(S.owner.avatar)}" alt="">`:`<span>${esc((S.owner.name||'E')[0])}</span>`}<div><b>${esc(S.owner.name||'Elsewhere user')}</b><small>@${esc(S.owner.handle||'elsewhere')}</small></div></button>`:''}${widgetZone(0)}<div class="launcher-rule"><small>HOME 01</small><span>${homeEdit?'drag freely':'hold to edit'}</span></div>${appGrid(firstApps,'home-favorite-grid')}`);
+  const others=pages.map((items,i)=>{const pi=i+1;return pageShell(pi,`<div class="page-kicker"><span>HOME ${String(pi+1).padStart(2,'0')}</span><div class="page-tools"><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${homeEdit?'<button data-edit-done>完成</button>':''}</div></div>${widgetZone(pi)}<div class="launcher-rule"><small>APPS</small><span>${homeEdit?'drag to move or merge':'your little phone'}</span></div>${appGrid(items)}${!items.length&&!pageWidgets(pi).length?'<div class="empty-home-page">这一页还是空的。长按后可以添加组件或拖 App 过来。</div>':''}`)}).join('');
+  return `<section class="home swipe-home ${homeEdit?'home-edit':''}"><div class="home-pages" id="homePages">${first}${others}</div><div class="home-page-dots" aria-label="主页分页">${Array.from({length:totalPages},(_,i)=>`<button data-home-dot="${i}" class="${i===homePage?'active':''}" aria-label="第 ${i+1} 页"></button>`).join('')}</div>${homeEdit?homeEditPaletteHtml():''}<nav class="tumblr-dock text-dock phone-dock"><button data-open="messages">消息</button><button data-open="thomas">Thomas</button><button data-open="social">社交</button><button data-open="profile">我</button></nav></section>`;
 }
 function orderedApps(){const order=S.custom?.appOrder||[];return [...apps].sort((a,b)=>{const ai=order.indexOf(a[0]),bi=order.indexOf(b[0]);return (ai<0?999:ai)-(bi<0?999:bi)});}
 function view(k,arg){
@@ -396,7 +411,7 @@ function customizeView(){
     <h3 class="section-title">apps</h3><p class="custom-help">默认统一使用小星星，保持整齐。点 App 可以改名、隐藏，或上传自己的图片作为图标。</p><div class="visual-app-manager clean-app-manager">${orderedApps().map(a=>{const al=c.aliases[a[0]]||{};return `<button draggable="true" data-app-tile="${a[0]}" data-app-edit="${a[0]}" class="${c.hiddenApps.includes(a[0])?'is-hidden':''}">${al.src?`<img src="${esc(al.src)}">`:'<span class="no-icon-preview star-preview">★</span>'}<span><b>${esc(al.label||a[2])}</b><small>${c.hiddenApps.includes(a[0])?'hidden':'tap to edit'}</small></span></button>`}).join('')}</div>
     <h3 class="section-title">type & colour</h3><div class="custom-form couture-form"><label>title<input data-custom="title" value="${esc(c.title)}"></label><label>subtitle<input data-custom="subtitle" value="${esc(c.subtitle)}"></label><label>little sentence<input data-custom="quote" value="${esc(c.quote)}"></label></div><div class="color-row couture-colors"><label><span>pink</span><input type="color" data-custom-color="accent" value="${c.accent||'#c96f8a'}"></label><label><span>paper</span><input type="color" data-custom-color="paper" value="${c.paper||'#fff7f8'}"></label><label><span>ink</span><input type="color" data-custom-color="ink" value="${c.ink||'#49363d'}"></label></div>
     <div class="custom-air-controls"><label>桌面间距 <b>${c.spacing||18}px</b><input type="range" min="10" max="30" value="${c.spacing||18}" data-custom-range="spacing" data-suffix="px"></label><label>卡片透明度 <b>${c.cardOpacity||82}%</b><input type="range" min="45" max="100" value="${c.cardOpacity||82}" data-custom-range="cardOpacity" data-suffix="%"></label><label>圆角 <b>${c.radius||24}px</b><input type="range" min="4" max="34" value="${c.radius||24}" data-custom-range="radius" data-suffix="px"></label></div>
-    <button class="primary wide couture-primary" data-wallpaper>upload default wallpaper</button><button class="paper-button wide" data-custom-reset>restore Pink Dream</button>
+    <button class="primary wide couture-primary" data-wallpaper-studio>wallpaper studio</button><button class="paper-button wide" data-custom-reset>restore Pink Dream</button>
   </main>`;
 }
 
@@ -429,7 +444,7 @@ function widgetHtml(w){
 }
 function worldView(){const log=[...S.privateChats].sort((a,b)=>b.ts-a.ts);return `${header('世界','world engine','<button class="round" data-world-pulse>✦</button>')}<main class="page"><div class="world-card"><small>ACTIVE WORLD</small><h2>${esc(S.worlds.find(w=>w.id===S.activeWorld)?.name||'Main World')}</h2><p>角色会在你离开时继续留下痕迹：主动消息、朋友圈、私聊、秘密与关系变化。</p><button class="primary wide" data-world-pulse>推进世界一次</button></div><h3 class="section-title">世界存档</h3><div class="setting-list">${S.worlds.map(w=>`<button data-world-switch="${w.id}">${w.id===S.activeWorld?'● ':'○ '}${esc(w.name)}<i>›</i></button>`).join('')}<button data-world-new>＋ 新建世界存档<i>›</i></button></div><h3 class="section-title">角色之间</h3>${log.length?log.map(x=>`<article class="private-chat"><small>${rel(x.ts)} · ${esc(ch(x.a)?.name||x.a)} × ${esc(ch(x.b)?.name||x.b)}</small>${x.messages.map(m=>`<p><b>${esc(ch(m.who)?.name||m.who)}：</b>${esc(m.text)}</p>`).join('')}</article>`).join(''):'<div class="empty-paper">还没有留下角色之间的私聊。</div>'}</main>`}
 function characterPhoneView(id){const c=ch(id);if(!c)return header('角色手机')+'<main class="page">not found</main>';const r=S.relationships[id]||{score:50,label:'熟悉',secrets:[]};const mem=S.memories[id]||[];const privateThreads=S.privateChats.filter(x=>x.a===id||x.b===id);return `${header(c.name+' 的手机','private phone')}<main class="page"><div class="phone-peek"><div class="peek-lock">${avatar(c)}<h2>${esc(c.name)}</h2><small>${r.score}/100 · ${esc(r.label)}</small></div><div class="peek-grid"><div><small>MEMORY</small><b>${mem.length}</b><span>长期记忆</span></div><div><small>SECRETS</small><b>${r.secrets.length}</b><span>未说出口</span></div><div><small>CHATS</small><b>${privateThreads.length}</b><span>私人对话</span></div><div><small>CALLS</small><b>${S.callLogs.filter(x=>x.character===id).length}</b><span>通话记录</span></div></div></div><h3 class="section-title">长期记忆</h3>${mem.map(m=>`<div class="memory-row"><span>✦</span><p>${esc(m.text)}</p><small>${'★'.repeat(Math.max(1,m.importance||1))}</small></div>`).join('')||'<div class="empty-paper">还没有形成长期记忆。</div>'}<h3 class="section-title">秘密</h3>${r.secrets.map(x=>`<div class="secret-note">${esc(x)}</div>`).join('')||'<div class="empty-paper">暂时没有秘密。</div>'}<h3 class="section-title">角色私聊</h3>${privateThreads.map(x=>`<article class="private-chat">${x.messages.map(m=>`<p><b>${esc(ch(m.who)?.name||m.who)}：</b>${esc(m.text)}</p>`).join('')}</article>`).join('')||'<div class="empty-paper">没有发现私聊。</div>'}</main>`}
-function settingsView(){const p=S.settings.thomasProfile;return `${header('设置','settings')}<main class="page"><h3 class="section-title">主题</h3><div class="theme-grid">${Object.entries(themes).map(([id,t])=>`<button data-theme="${id}" class="${S.theme===id?'active':''}" style="--sample:${t.wall}"><span></span><b>${esc(t.name)}</b></button>`).join('')}</div><h3 class="section-title">Thomas · 语气养成</h3><div class="thomas-settings"><label>温柔度 <b>${p.warmth}</b><input type="range" min="0" max="100" value="${p.warmth}" data-thomas-range="warmth"></label><label>毒舌度 <b>${p.sass}</b><input type="range" min="0" max="100" value="${p.sass}" data-thomas-range="sass"></label><label>主动程度 <b>${p.initiative}</b><input type="range" min="0" max="100" value="${p.initiative}" data-thomas-range="initiative"></label><label>正式程度 <b>${p.formality}</b><input type="range" min="0" max="100" value="${p.formality}" data-thomas-range="formality"></label><label>话多程度 <b>${p.verbosity}</b><input type="range" min="0" max="100" value="${p.verbosity}" data-thomas-range="verbosity"></label><label class="thomas-field">Thomas 怎么称呼你<input value="${esc(p.address)}" data-thomas-address></label><label class="thomas-field">基础人格<textarea data-thomas-base>${esc(p.base)}</textarea></label><label class="learn-toggle"><input type="checkbox" data-thomas-learn ${p.learn?'checked':''}> 根据聊天反馈慢慢调整语气</label><small>已学会 ${S.settings.thomasLearned.length} 条偏好。你也可以直接对 Thomas 说“别这么官方”“再毒舌一点”“以后叫我 Ann”。</small><button class="pill" data-thomas-forget>清除已学习的语气偏好</button></div><h3 class="section-title">主页 Widgets</h3><p class="hint">每个 Widget 都可以选择页面和尺寸，也可以重复加入同一种。</p>${widgetManagerHtml()}<h3 class="section-title">Elsewhere</h3><div class="setting-list"><button data-wallpaper>更换自己的壁纸 <i>›</i></button><button data-export>导出数据 <i>›</i></button><button data-import>导入数据 <i>›</i></button><button data-reset class="danger">重置小手机 <i>›</i></button></div><section class="ai-status-card" id="aiStatusCard"><div><small>AI ENGINE</small><b id="aiStatusLabel">正在检查 Gemini…</b><span id="aiStatusMeta">Thomas 与角色共用同一个 Gemini 连接</span></div><button data-ai-test>Test AI</button></section><p class="hint">Render 只需要 GEMINI_API_KEY。AI 失败时会明确标记为 Local，不再偷偷伪装成已连接。</p></main>`}
+function settingsView(){const p=S.settings.thomasProfile;return `${header('设置','settings')}<main class="page"><h3 class="section-title">主题</h3><div class="theme-grid">${Object.entries(themes).map(([id,t])=>`<button data-theme="${id}" class="${S.theme===id?'active':''}" style="--sample:${t.wall}"><span></span><b>${esc(t.name)}</b></button>`).join('')}</div><h3 class="section-title">Thomas · 语气养成</h3><div class="thomas-settings"><label>温柔度 <b>${p.warmth}</b><input type="range" min="0" max="100" value="${p.warmth}" data-thomas-range="warmth"></label><label>毒舌度 <b>${p.sass}</b><input type="range" min="0" max="100" value="${p.sass}" data-thomas-range="sass"></label><label>主动程度 <b>${p.initiative}</b><input type="range" min="0" max="100" value="${p.initiative}" data-thomas-range="initiative"></label><label>正式程度 <b>${p.formality}</b><input type="range" min="0" max="100" value="${p.formality}" data-thomas-range="formality"></label><label>话多程度 <b>${p.verbosity}</b><input type="range" min="0" max="100" value="${p.verbosity}" data-thomas-range="verbosity"></label><label class="thomas-field">Thomas 怎么称呼你<input value="${esc(p.address)}" data-thomas-address></label><label class="thomas-field">基础人格<textarea data-thomas-base>${esc(p.base)}</textarea></label><label class="learn-toggle"><input type="checkbox" data-thomas-learn ${p.learn?'checked':''}> 根据聊天反馈慢慢调整语气</label><small>已学会 ${S.settings.thomasLearned.length} 条偏好。你也可以直接对 Thomas 说“别这么官方”“再毒舌一点”“以后叫我 Ann”。</small><button class="pill" data-thomas-forget>清除已学习的语气偏好</button></div><h3 class="section-title">主页 Widgets</h3><p class="hint">每个 Widget 都可以选择页面和尺寸，也可以重复加入同一种。</p>${widgetManagerHtml()}<h3 class="section-title">Elsewhere</h3><div class="setting-list"><button data-wallpaper-studio>壁纸与主页背景 <i>›</i></button><button data-export>导出数据 <i>›</i></button><button data-import>导入数据 <i>›</i></button><button data-reset class="danger">重置小手机 <i>›</i></button></div><section class="ai-status-card" id="aiStatusCard"><div><small>AI ENGINE</small><b id="aiStatusLabel">正在检查 Gemini…</b><span id="aiStatusMeta">Thomas 与角色共用同一个 Gemini 连接</span></div><button data-ai-test>Test AI</button></section><p class="hint">Render 只需要 GEMINI_API_KEY。AI 失败时会明确标记为 Local，不再偷偷伪装成已连接。</p></main>`}
 
 function uiLayer(){
   let layer=document.querySelector('#uiLayer');
@@ -680,22 +695,32 @@ async function createHomeFolder(){
   const v=await uiForm({title:'New Folder',subtitle:'在同一张卡里完成。',fields:[{name:'name',label:'文件夹名称',value:'My Folder',placeholder:'文件夹名称'}]}); if(!v?.name)return;
   const id='f-'+uid(); S.custom.folders.push({id,name:v.name,apps:[]}); S.custom.homeLayout.push('folder:'+id); save(); render(); uiToast('文件夹已建立，把 App 拖进去就好');
 }
-function moveLayoutEntry(key,targetKey){
-  const a=S.custom.homeLayout; const i=a.indexOf(key),j=a.indexOf(targetKey); if(i<0||j<0||i===j)return; a.splice(i,1); a.splice(j,0,key); save();
+function moveLayoutEntry(key,targetKey,before=true){
+  const a=S.custom.homeLayout; const i=a.indexOf(key); if(i<0)return; a.splice(i,1); const j=a.indexOf(targetKey); if(j<0){a.push(key);save();return;} a.splice(j+(before?0:1),0,key); save();
+}
+function pageInsertIndex(page){
+  page=Math.max(0,Number(page)||0); if(page===0)return Math.min(8,S.custom.homeLayout.length);
+  return Math.min(S.custom.homeLayout.length,8+page*12);
 }
 function moveAppToPage(key,page){
-  const a=S.custom.homeLayout; const i=a.indexOf(key); if(i<0)return; a.splice(i,1); const appPage=Math.max(0,page); const insert=appPage===0?0:Math.min(a.length,8+(appPage-1)*12+12); a.splice(insert,0,key); save();
+  const a=S.custom.homeLayout; const i=a.indexOf(key); if(i<0)return; a.splice(i,1); const insert=Math.min(a.length,pageInsertIndex(page)); a.splice(insert,0,key); S.custom.homePageCount=Math.max(Number(S.custom.homePageCount)||2,page+1); save();
 }
+
 function addAppToFolder(key,fid){
   const f=folderById(fid); if(!f||f.apps.includes(key))return; S.custom.homeLayout=S.custom.homeLayout.filter(x=>x!==key); f.apps.push(key); save();
 }
 function phoneOSBind(){
   const phone=$('.phone'); if(!phone)return;
   $$('[data-folder-open]').forEach(x=>x.onclick=e=>{e.stopPropagation();openFolder(x.dataset.folderOpen)});
-  $$('[data-edit-done]').forEach(x=>x.onclick=()=>{homeEdit=false;render()});
+  $$('[data-edit-done]').forEach(x=>x.onclick=()=>{homeEdit=false;clearDragUI();render()});
+  $$('[data-home-edit-open]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();homeEdit=true;render();uiToast('编辑模式：拖动 App / Widget，重叠 App 可建立文件夹')});
+  $('[data-home-add-page]')?.addEventListener('click',()=>{S.custom.homePageCount=Math.max(2,Number(S.custom.homePageCount)||2)+1;homePage=S.custom.homePageCount-1;save();render();uiToast('已增加一个主页')});
+  $('[data-home-wallpaper]')?.addEventListener('click',()=>wallpaperStudio(homePage));
   $('[data-folder-new]')?.addEventListener('click',createHomeFolder);
   $$('[data-widget-library-page]').forEach(x=>x.onclick=()=>widgetLibrarySheet(Number(x.dataset.widgetLibraryPage)||0));
-  $('[data-page-wallpaper]')?.addEventListener('click',()=>{const input=document.createElement('input');input.type='file';input.accept='image/*';input.onchange=()=>{const f=input.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{S.custom.pageWallpapers[homePage]=r.result;save();render()};r.readAsDataURL(f)};input.click()});
+  $$('[data-widget-delete]').forEach(x=>{x.onpointerdown=e=>e.stopPropagation();x.onclick=e=>{e.preventDefault();e.stopPropagation();S.custom.homeWidgets=(S.custom.homeWidgets||[]).filter(w=>w.id!==x.dataset.widgetDelete);save();render();uiToast('Widget 已删除')}});
+  $$('[data-widget-config]').forEach(x=>{x.onpointerdown=e=>e.stopPropagation();x.onclick=e=>{e.preventDefault();e.stopPropagation();editWidgetSheet(x.dataset.widgetConfig)}});
+  $('[data-page-wallpaper]')?.addEventListener('click',()=>wallpaperStudio(homePage));
   $('[data-shade-close]')?.addEventListener('click',()=>{shadeOpen=false;$('#notificationShade')?.classList.remove('open')});
   $('[data-notif-read]')?.addEventListener('click',()=>{S.notifications.forEach(n=>n.read=true);save();render()});
   $('[data-notif-clear]')?.addEventListener('click',()=>{S.notifications=[];save();render()});
@@ -710,7 +735,7 @@ function phoneOSBind(){
         hold=setTimeout(()=>{homeEdit=true;navigator.vibrate?.(15);render();uiToast('编辑模式：现在可以拖动 App')},430);
         return;
       }
-      dragState={key,pointerId:e.pointerId};
+      dragState={key,pointerId:e.pointerId}; document.body.classList.add('ew-dragging');el.classList.add('is-drag-source');
       el.setPointerCapture?.(e.pointerId);
       e.preventDefault();
     };
@@ -720,6 +745,7 @@ function phoneOSBind(){
       moved=true;
       if(!ghost){ghost=el.cloneNode(true);ghost.classList.add('drag-ghost');document.body.appendChild(ghost)}
       ghost.style.left=e.clientX+'px'; ghost.style.top=e.clientY+'px';
+      document.querySelectorAll('.is-drop-target,.is-folder-target').forEach(x=>x.classList.remove('is-drop-target','is-folder-target')); const under=document.elementFromPoint(e.clientX,e.clientY); const targetApp=under?.closest?.('[data-app-key]'); const targetFolder=under?.closest?.('[data-folder-key]'); if(targetFolder)targetFolder.classList.add('is-folder-target'); else if(targetApp&&targetApp!==el){const rr=targetApp.getBoundingClientRect(),ccx=rr.left+rr.width/2,ccy=rr.top+rr.height/2;targetApp.classList.add(Math.abs(e.clientX-ccx)<rr.width*.26&&Math.abs(e.clientY-ccy)<rr.height*.28?'is-folder-target':'is-drop-target');}
       const hp=$('#homePages'); if(hp){const r=hp.getBoundingClientRect(); if(e.clientX>r.right-34&&homePage<$$('.home-page').length-1){homePage++;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}else if(e.clientX<r.left+34&&homePage>1){homePage--;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}}
       e.preventDefault();
     };
@@ -730,7 +756,7 @@ function phoneOSBind(){
       ghost?.remove(); ghost=null;
       if(moved){
         const hit=document.elementFromPoint(e.clientX,e.clientY); const folder=hit?.closest?.('[data-folder-key]'); const target=hit?.closest?.('[data-app-key]'); const page=hit?.closest?.('[data-app-page]');
-        if(folder)addAppToFolder(key,folder.dataset.folderKey); else if(target&&target.dataset.appKey!==key){const fid=createFolderFromApps(key,target.dataset.appKey);if(fid)uiToast('已合并成文件夹 · 打开后可重命名');} else if(page)moveAppToPage(key,Number(page.dataset.appPage));
+        if(folder)addAppToFolder(key,folder.dataset.folderKey); else if(target&&target.dataset.appKey!==key){const r=target.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;const center=Math.abs(e.clientX-cx)<r.width*.26&&Math.abs(e.clientY-cy)<r.height*.28;if(center){const fid=createFolderFromApps(key,target.dataset.appKey);if(fid)uiToast('已合并成文件夹 · 打开后可重命名');}else{moveLayoutEntry(key,target.dataset.appKey,e.clientX<cx||e.clientY<cy);}} else if(page)moveAppToPage(key,Number(page.dataset.appPage));
         dragState=null; clearDragUI(); render();
       } else {dragState=null;clearDragUI();}
     };
@@ -939,6 +965,7 @@ function bind(){
   $$('[data-del-char]').forEach(x=>x.onclick=async()=>{const c=ch(x.dataset.delChar);if(await uiConfirm({title:'删除角色',message:`确定要从 Elsewhere 删除 ${c?.name||'这个角色'}？聊天记录也会一起移除。`,confirmText:'删除',danger:true})){S.characters=S.characters.filter(c=>c.id!==x.dataset.delChar);delete S.chats[x.dataset.delChar];persistRender();uiToast('角色已删除')}});
   $$('[data-theme]').forEach(x=>x.onclick=()=>{S.theme=x.dataset.theme;S.custom.accent='';S.custom.paper='';S.custom.ink='';S.wallpaper='';save();applyTheme();render();uiToast('Theme 已切换')});
   $('[data-wallpaper]')?.addEventListener('click',()=>$('#photoPicker').click());
+  $$('[data-wallpaper-studio]').forEach(x=>x.onclick=()=>wallpaperStudio(homePage));
   $('[data-photo-add]')?.addEventListener('click',()=>{const p=$('#photoPicker');p.dataset.mode='photo';p.click()});
   $('#photoPicker')?.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{if(e.target.dataset.mode==='photo')S.photos.unshift({id:uid(),data:r.result});else S.wallpaper=r.result;e.target.dataset.mode='';persistRender()};r.readAsDataURL(f)});
   $$('[data-del-photo]').forEach(x=>x.onclick=()=>{S.photos=S.photos.filter(p=>p.id!==x.dataset.delPhoto);persistRender()});
