@@ -1,0 +1,805 @@
+const $ = (s, root=document) => root.querySelector(s);
+const $$ = (s, root=document) => [...root.querySelectorAll(s)];
+const KEY = 'elsewhere-v23-state';
+const LEGACY_KEY = 'elsewhere-v22-state';
+const LEGACY_KEY_2 = 'elsewhere-v21-state';
+const VERSION = '2.3.0-bento-home';
+
+const today = () => new Date().toISOString().slice(0,10);
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc = (s='') => String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const fmtTime = (d=Date.now()) => new Date(d).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});
+const rel = ts => { const m=Math.max(0,Math.floor((Date.now()-ts)/60000)); if(m<1)return '刚刚'; if(m<60)return `${m} 分钟前`; const h=Math.floor(m/60); if(h<24)return `${h} 小时前`; return `${Math.floor(h/24)} 天前`; };
+const clone = o => JSON.parse(JSON.stringify(o));
+
+const themes = {
+  blush:{name:'Blush Scrapbook',paper:'#fff7f8',ink:'#49363d',muted:'#9f7f89',accent:'#c96f8a',accent2:'#efb9c8',wall:'radial-gradient(circle at 78% 2%,rgba(255,255,255,.86),transparent 24%),radial-gradient(circle at 5% 30%,rgba(244,188,206,.35),transparent 29%),linear-gradient(145deg,#e9cbd4 0%,#f9e7eb 38%,#d8b8c3 100%)'},
+  ribbon:{name:'Ribbon Milk',paper:'#fffaf8',ink:'#4b3b3e',muted:'#a18789',accent:'#b86c7d',accent2:'#f0c9cf',wall:'linear-gradient(155deg,#ead7d6,#fff4f0 46%,#e9cbd2)'},
+  atelier:{name:'Rose Archive',paper:'#f8efec',ink:'#372d31',muted:'#92777f',accent:'#a6536b',accent2:'#dba4b4',wall:'radial-gradient(circle at 20% 8%,rgba(255,255,255,.95),transparent 24%),linear-gradient(155deg,#d9cbc7 0%,#f5eee8 44%,#e7cfd5 100%)'},
+  noir:{name:'Nocturne Scrap',paper:'#1d1a1b',ink:'#f4ede8',muted:'#b7a9a4',accent:'#c27c93',accent2:'#7a6579',wall:'linear-gradient(160deg,#191617,#372d30 48%,#201c25 100%)'},
+  olive:{name:'Old Garden',paper:'#f1eee2',ink:'#303328',muted:'#7a7c6c',accent:'#7f8060',accent2:'#b6a78c',wall:'linear-gradient(160deg,#c9c5ab,#ece5d0 55%,#d6c5bf)'},
+  blue:{name:'Rain Letter',paper:'#edf0f1',ink:'#293038',muted:'#74808a',accent:'#687d91',accent2:'#a7bac7',wall:'linear-gradient(160deg,#c2cad1,#e9ecec 50%,#d9ced0)'}
+};
+
+const defaultState = {
+  theme:'blush', locked:true, owner:{name:'Ann',handle:'ann',bio:'collecting little things from ordinary days.',status:'somewhere between busy and daydreaming.',avatar:'',banner:'',tags:['scrapbook','study']}, wallpaper:'',
+  social:{userId:'u-'+uid(),following:[],feed:[],lastSync:0},
+  custom:{title:'Elsewhere',subtitle:'此刻以外',tagline:'A SMALL PHONE, A BIGGER YOU',quote:'same sky, different dreams.',accent:'',paper:'',ink:'',radius:28,font:'serif',density:'cozy',iconShape:'soft',appOrder:[],hiddenApps:[],aliases:{},cardOpacity:88,blur:22,shadow:16,grain:24,spacing:18,appSize:58,dockOpacity:82,borderStrength:18,titleScale:100,wallpaperTint:14, iconStyle:'star', showHomeAvatar:true, clickEffect:'sparkle', effectStrength:2, compactApps:true, pageWallpapers:{}, folders:[], homeLayout:[], homeWidgets:[{id:'hw-clock',type:'clock',page:0,size:'1x1'},{id:'hw-todo',type:'todo',page:0,size:'1x1'},{id:'hw-thomas',type:'thomas',page:0,size:'2x1'},{id:'hw-weather',type:'weather',page:0,size:'2x1'},{id:'hw-study',type:'study',page:0,size:'2x1'}]},
+  weather:{city:'Elsewhere',temp:'29',desc:'大毛毛雨 · 微风',low:'26',high:'30',loading:false},
+  characters:[
+    {id:'victor',name:'Victor',initial:'V',relation:'close friend',status:'last seen just now',color:'#92727b',personality:'敏锐、克制、有点坏心眼，会记住细节。',style:'自然短句，偶尔很轻地调侃。'},
+    {id:'ciel',name:'Ciel',initial:'C',relation:'best friend',status:'online',color:'#7f8590',personality:'热情、会吐槽、观察力强。',style:'像真实朋友，反应快，偶尔连续发几条。'}
+  ],
+  chats:{
+    victor:[{id:uid(),role:'assistant',text:'在做什么？',ts:Date.now()-23*60000},{id:uid(),role:'assistant',text:'别太累了。记得喝水，休息一下。',ts:Date.now()-19*60000}],
+    ciel:[{id:uid(),role:'assistant',text:'我发现一家新咖啡店。你下次必须和我去。',ts:Date.now()-80*60000}]
+  },
+  moments:[
+    {id:uid(),who:'victor',text:'下了一整天的雨，但雨声也有一种让人平静的魔力。',ts:Date.now()-2*3600000,likes:21},
+    {id:uid(),who:'ciel',text:'新的咖啡店！好喜欢这个角落。',ts:Date.now()-5*3600000,likes:14}
+  ],
+  todos:[
+    {id:uid(),text:'完成作业',done:false},{id:uid(),text:'整理房间',done:false},{id:uid(),text:'阅读 30 分钟',done:false},{id:uid(),text:'喝够 2L 水',done:false},{id:uid(),text:'买生日礼物',done:true}
+  ],
+  habits:[
+    {id:uid(),name:'喝水',detail:'1200 / 2000 ml',streak:3,done:false},{id:uid(),name:'早睡',detail:'目标 23:30 前',streak:5,done:false},{id:uid(),name:'运动',detail:'42 min today',streak:2,done:false},{id:uid(),name:'阅读',detail:'30 min today',streak:7,done:false}
+  ],
+  events:[
+    {id:uid(),date:today(),time:'09:00',title:'早餐 & 早安'},{id:uid(),date:today(),time:'10:00',title:'书房 · 学习'},{id:uid(),date:today(),time:'19:00',title:'健身 · 腿部'},{id:uid(),date:today(),time:'22:00',title:'睡前阅读'}
+  ],
+  study:{seconds:25*60,running:false,lastTick:0,totalMinutes:0},
+  food:[{id:uid(),meal:'早餐',name:'燕麦 + 水果 + 牛奶',kcal:320},{id:uid(),meal:'午餐',name:'鸡胸肉沙拉',kcal:450}],
+  water:1200,
+  fitness:[{id:uid(),name:'腿部训练',minutes:30,kcal:280}],
+  finance:[{id:uid(),type:'expense',name:'咖啡',amount:18.5},{id:uid(),type:'expense',name:'交通',amount:12},{id:uid(),type:'income',name:'零用',amount:400}],
+  notes:[{id:uid(),title:'一些话',text:'做一个更好的自己，也要记得给生活留一点空白。'}],
+  diary:[{id:uid(),date:today(),text:'今天没有什么大事。只是突然觉得，普通的一天也可以被认真收藏。'}],
+  photos:[],
+  notifications:[{id:uid(),title:'Thomas',text:'下午好。今天还有 3 项待办没有完成。',ts:Date.now()-15*60000,read:false}],
+  thomas:[{id:uid(),role:'assistant',text:'嗨，Ann。今天过得怎么样？如果有任何事情想聊、想记录，或者只是想发呆，我都在这里。',ts:Date.now()-1000}],
+  memories:{victor:[{id:uid(),text:'Ann 不喜欢被催得太紧。',importance:3,ts:Date.now()-86400000}],ciel:[]},
+  relationships:{victor:{score:68,label:'亲近',secrets:['其实会默默看你的朋友圈。']},ciel:{score:74,label:'挚友',secrets:['准备带你去一家没告诉你的咖啡店。']}},
+  privateChats:[{id:uid(),a:'victor',b:'ciel',ts:Date.now()-3*3600000,messages:[{who:'ciel',text:'她最近是不是又熬夜？'},{who:'victor',text:'嗯。嘴上说没事。'}]}],
+  worlds:[{id:'main',name:'Main World',createdAt:Date.now()}], activeWorld:'main',
+  worldMeta:{lastPulse:Date.now()-2*3600000,auto:true,pulseMinutes:8},
+  callLogs:[],
+  widgets:[{id:'w-thomas',type:'thomas',x:18,y:230},{id:'w-note',type:'note',x:210,y:248}],
+  moods:[{id:uid(),date:today(),value:4,note:'还不错'}],
+  sleep:[{id:uid(),date:today(),hours:7.5,quality:4}],
+  countdowns:[{id:uid(),title:'一个值得期待的日子',date:new Date(Date.now()+14*86400000).toISOString().slice(0,10)}],
+  wishlist:[{id:uid(),text:'买一本喜欢很久的书',done:false}],
+  bookmarks:[{id:uid(),title:'Elsewhere notes',url:'https://example.com'}],
+  settings:{assistantName:'Thomas',useAI:true,thomasProfile:{warmth:72,sass:28,initiative:58,formality:30,verbosity:42,address:'Ann',base:'克制、体贴、聪明，有一点英式管家的从容，但不是客服。',learn:true},thomasLearned:[]}
+};
+
+function load(){
+  try{
+    const fresh=JSON.parse(localStorage.getItem(KEY)||'null');
+    const legacy=!fresh?JSON.parse(localStorage.getItem(LEGACY_KEY)||'null'):null;
+    const legacy2=!fresh&&!legacy?JSON.parse(localStorage.getItem(LEGACY_KEY_2)||'null'):null;
+    const saved=fresh||legacy||legacy2;
+    const out=saved?Object.assign(clone(defaultState),saved):clone(defaultState);
+    if((legacy||legacy2)&&!fresh){ out.theme='blush'; out.custom=Object.assign(clone(defaultState.custom),out.custom||{}, {accent:'',paper:'',ink:''}); }
+    out.settings ||= clone(defaultState.settings);
+    out.settings.thomasProfile=Object.assign(clone(defaultState.settings.thomasProfile),out.settings.thomasProfile||{});
+    out.settings.thomasLearned ||= [];
+    out.custom=Object.assign(clone(defaultState.custom),out.custom||{});
+    delete out.custom.desktopEdit; delete out.custom.stickers;
+    out.custom.pageWallpapers ||= {}; out.custom.folders ||= []; out.custom.homeLayout ||= []; out.custom.homeWidgets ||= clone(defaultState.custom.homeWidgets); out.custom.homeWidgets=out.custom.homeWidgets.map(w=>Object.assign({page:0,size:'2x1'},w));
+    if(!fresh){
+      const defaults=new Map([['hw-clock','1x1'],['hw-todo','1x1'],['hw-thomas','2x1'],['hw-weather','2x1'],['hw-study','2x1']]);
+      out.custom.homeWidgets.forEach(w=>{ if(defaults.has(w.id)) w.size=defaults.get(w.id); });
+      const rank=['hw-clock','hw-todo','hw-thomas','hw-weather','hw-study'];
+      out.custom.homeWidgets.sort((a,b)=>{const ai=rank.indexOf(a.id),bi=rank.indexOf(b.id);return (ai<0?99:ai)-(bi<0?99:bi)});
+    }
+    out.owner=Object.assign(clone(defaultState.owner),out.owner||{});
+    out.social=Object.assign(clone(defaultState.social),out.social||{});
+    out.social.following ||= []; out.social.feed ||= []; out.social.profiles ||= [];
+    if(!fresh) out.custom.iconStyle='none';
+    ['moods','sleep','countdowns','wishlist','bookmarks'].forEach(k=>out[k] ||= clone(defaultState[k]));
+    return out;
+  }catch{return clone(defaultState)}
+}
+let S=load(), current='home', currentArg=null, timer=null, todoTab='todo', homePage=0, homeEdit=false, dragState=null, shadeOpen=false;
+function save(){ localStorage.setItem(KEY,JSON.stringify(S)); }
+function ch(id){ return S.characters.find(x=>x.id===id); }
+function avatar(c,cls=''){ return `<div class="avatar ${cls}" style="--av:${c.color||'#9c7881'}">${esc(c.initial||c.name?.[0]||'?')}</div>`; }
+function applyTheme(){
+  const t=themes[S.theme]||themes.blush; for(const [k,v] of Object.entries(t)) document.documentElement.style.setProperty('--'+k,v);
+  const c=S.custom||{}; if(c.accent)document.documentElement.style.setProperty('--accent',c.accent); if(c.paper)document.documentElement.style.setProperty('--paper',c.paper); if(c.ink)document.documentElement.style.setProperty('--ink',c.ink);
+  const vars={radius:(c.radius||24)+'px',cardOpacity:(c.cardOpacity??82)/100,glassBlur:(c.blur??18)+'px',shadowSize:(c.shadow??18)+'px',grainOpacity:(c.grain??42)/1000,gridGap:(c.spacing??12)+'px',appSize:(c.appSize??58)+'px',dockOpacity:(c.dockOpacity??74)/100,borderAlpha:(c.borderStrength??22)/100,titleScale:(c.titleScale??100)/100,wallpaperTint:(c.wallpaperTint??20)/100};
+  Object.entries(vars).forEach(([k,v])=>document.documentElement.style.setProperty('--'+k.replace(/[A-Z]/g,m=>'-'+m.toLowerCase()),v));
+  document.documentElement.dataset.font=c.font||'serif'; document.documentElement.dataset.density=c.density||'cozy'; document.documentElement.dataset.iconshape=c.iconShape||'soft';
+  const tint=`linear-gradient(rgba(255,239,244,var(--wallpaper-tint)),rgba(255,239,244,var(--wallpaper-tint)))`;
+  document.documentElement.style.setProperty('--wallpaper',S.wallpaper?`${tint},url('${S.wallpaper}') center/cover`:t.wall);
+}
+function persistRender(){save();render();}
+
+const apps = [
+  ['thomas','','Thomas'],['messages','','消息'],['moments','','朋友圈'],['photos','','相册'],
+  ['todo','','待办'],['calendar','','日历'],['study','','书房'],['food','','饮食'],
+  ['fitness','','健身'],['weather','','天气'],['finance','','记账'],['habits','','习惯'],
+  ['notes','','笔记'],['diary','','日记'],['mood','','心情'],['sleep','','睡眠'],
+  ['countdown','','倒数日'],['wishlist','','愿望清单'],['bookmarks','','收藏'],
+  ['contacts','','角色'],['world','','世界'],['social','','社交'],['profile','','我'],['customize','','装扮'],['settings','','更多']
+];
+
+const tumblrAssets={
+  messages:'/assets/tumblr/pink-reminder.png', moments:'/assets/tumblr/rose-windows.jpg', photos:'/assets/tumblr/dino-keychain.png',
+  todo:'/assets/tumblr/rilakkuma-clip.png', calendar:'/assets/tumblr/starfish.png', study:'/assets/tumblr/piano-bow.png', food:'/assets/tumblr/toast.png',
+  fitness:'/assets/tumblr/music-bow.png', weather:'/assets/tumblr/color-stars.png', finance:'/assets/tumblr/chocolate.png', habits:'/assets/tumblr/miffy.png',
+  notes:'/assets/tumblr/rose-windows.jpg', diary:'/assets/tumblr/bear.png', mood:'/assets/tumblr/orange-flower.png', sleep:'/assets/tumblr/lace-flower.png',
+  countdown:'/assets/tumblr/gold-stars.png', wishlist:'/assets/tumblr/bunny-figurine.png', bookmarks:'/assets/tumblr/sculpture-eye.jpg',
+  contacts:'/assets/tumblr/bear.png', world:'/assets/tumblr/gold-stars.png', customize:'/assets/tumblr/lace-flower.png', settings:'/assets/tumblr/green-phone.png',
+  thomas:'/assets/tumblr/dino-keychain.png'
+};
+const stickerCatalog=[
+  ['gold-stars','gold stars'],['green-phone','green phone'],['chocolate','chocolate'],['pocky','pocky'],['bear','teddy'],['toast','toast'],['piano-bow','piano bow'],['music-bow','music bow'],['dino-keychain','dinosaur'],['rilakkuma-clip','bear clip'],['lace-flower','lace flower'],['bunny-figurine','bunny'],['starfish','starfish'],['miffy','miffy'],['orange-flower','orange flower'],['color-stars','color stars']
+];
+
+function status(){return `<div class="status"><b id="statusTime">${fmtTime()}</b><span>5G <i class="battery"><em></em></i></span></div>`}
+function render(){
+  applyTheme();
+  const app=$('#app');
+  app.innerHTML=`<div class="shell"><div class="phone">${status()}${S.locked?lockScreen():screen()}</div><aside class="desk-note"><div class="brand-script">Elsewhere</div><p>此刻以外 · a small phone, a bigger you.</p><small>v${VERSION} · scrapbook utility phone</small></aside></div><input id="photoPicker" type="file" accept="image/*" hidden>`;
+  bind();
+}
+function notificationShade(){
+  const unread=S.notifications.filter(n=>!n.read).length;
+  return `<aside class="notification-shade ${shadeOpen?'open':''}" id="notificationShade"><div class="shade-grabber"></div><header><div><small>ELSEWHERE</small><h2>通知中心</h2></div><button data-shade-close>完成</button></header><div class="shade-summary"><span>${unread} unread</span><button data-notif-read>全部已读</button></div><div class="shade-list">${S.notifications.length?S.notifications.slice(0,12).map(n=>`<button class="shade-notif ${n.read?'read':''}" data-open="thomas"><small>${esc(n.title||'Elsewhere')} · ${rel(n.ts||Date.now())}</small><b>${esc(n.text||'')}</b></button>`).join(''):'<div class="shade-empty">没有新的通知。</div>'}</div><button class="shade-clear" data-notif-clear>清空通知</button></aside>`;
+}
+function lockScreen(){
+  const d=new Date(), due=S.todos.filter(x=>!x.done).length;
+  return `<section class="lockscreen phone-lock"><div class="lock-widget-pages" id="lockPages">
+    <section class="lock-widget-page lock-main"><div class="locktop"><span>Elsewhere</span><span>5G</span></div><div class="locktime">${fmtTime()}</div><div class="lockdate">${d.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})}</div><p class="lock-quote">${esc(S.custom.quote||'same sky, different dreams.')}</p></section>
+    <section class="lock-widget-page lock-glance"><small>TODAY</small><h2>${due?`${due} things left`:'all clear'}</h2><div class="lock-mini-card"><b>${esc(S.weather.temp)}°</b><span>${esc(S.weather.city)} · ${esc(S.weather.desc)}</span></div><div class="lock-mini-card"><b>书房</b><span>${Math.floor(S.study.seconds/60)} min focus · ${S.study.running?'running':'ready'}</span></div></section>
+    <section class="lock-widget-page lock-notes"><small>RECENT</small>${S.notifications.slice(0,3).map(n=>`<button data-open="thomas"><b>${esc(n.title||'Elsewhere')}</b><span>${esc((n.text||'').slice(0,68))}</span></button>`).join('')||'<p>quiet for now.</p>'}</section>
+  </div><div class="lock-dots"><i class="active"></i><i></i><i></i></div><button class="unlock-btn" data-unlock>向上滑动解锁</button>${notificationShade()}</section>`;
+}
+function screen(){
+  const body=current==='home'?home():`<section class="view app-view">${view(current,currentArg)}<button class="home-handle" data-home aria-label="返回主页"><span></span></button></section>`;
+  return `${body}${notificationShade()}`;
+}
+function header(title,sub='',right=''){return `<header class="page-head"><button data-home>‹</button><div><h1>${esc(title)}</h1>${sub?`<small>${esc(sub)}</small>`:''}</div><span class="head-rule"></span>${right}</header>`}
+function icon(k,g,l){
+  const a=S.custom?.aliases?.[k]||{};
+  const label=a.label||l;
+  const custom=a.src;
+  const sub=({thomas:'assistant',messages:'messages',moments:'moments',photos:'archive',todo:'to do',calendar:'calendar',study:'study room',food:'food log',fitness:'fitness',weather:'weather',finance:'finance',habits:'habits',notes:'notes',diary:'diary',mood:'mood',sleep:'sleep',countdown:'countdown',wishlist:'wishlist',bookmarks:'saved',contacts:'characters',world:'worlds',social:'community',profile:'profile',customize:'customise',settings:'settings'})[k]||'app';
+  return `<button class="app-icon tumblr-app ${custom?'has-custom-icon':''}" data-open="${k}" data-app-key="${k}"><span class="app-visual">${custom?`<img src="${esc(custom)}" alt="">`:'<span class="default-star">★</span>'}</span><span class="app-copy"><b>${esc(label)}</b><small>${esc(sub)}</small></span></button>`;
+}
+
+function ensureHomeLayout(){
+  const known=orderedApps().map(a=>a[0]);
+  let layout=(S.custom.homeLayout||[]).filter(x=>known.includes(x)||String(x).startsWith('folder:'));
+  const inFolders=new Set((S.custom.folders||[]).flatMap(f=>f.apps||[]));
+  for(const k of known) if(!layout.includes(k)&&!inFolders.has(k)) layout.push(k);
+  S.custom.homeLayout=layout; return layout;
+}
+function folderById(id){return (S.custom.folders||[]).find(f=>f.id===id)}
+function folderIcon(f){
+  const previews=(f.apps||[]).slice(0,4).map(k=>{const a=S.custom.aliases?.[k]||{};return a.src?`<img src="${esc(a.src)}">`:'<i>★</i>'}).join('');
+  return `<button class="app-icon tumblr-app folder-icon" data-folder-open="${esc(f.id)}" data-folder-key="${esc(f.id)}"><span class="app-visual folder-visual">${previews||'<i>★</i><i>★</i>'}</span><span class="app-copy"><b>${esc(f.name||'文件夹')}</b><small>${(f.apps||[]).length} apps</small></span></button>`;
+}
+function homeEntry(entry){
+  if(String(entry).startsWith('folder:')){const f=folderById(String(entry).slice(7));return f?folderIcon(f):''}
+  const a=apps.find(x=>x[0]===entry); return a?icon(...a):'';
+}
+function pageWallpaperStyle(i){const w=S.custom.pageWallpapers?.[i];return w?`style="--page-wallpaper:url('${esc(w)}')"`:''}
+const HOME_WIDGET_TYPES = {
+  clock:'Clock', thomas:'Thomas', weather:'Weather', todo:'Todo', study:'Study', calendar:'Calendar', profile:'Profile', note:'Note', countdown:'Countdown', mood:'Mood', quote:'Quote', custom:'Custom text'
+};
+function homeWidgetHtml(w){
+  const due=S.todos.filter(x=>!x.done).length;
+  const note=S.notes[0];
+  const cd=(S.countdowns||[])[0];
+  const mood=(S.moods||[])[0];
+  const common=`data-home-widget-id="${esc(w.id)}" data-widget-type="${esc(w.type)}" data-widget-page="${Number(w.page)||0}" data-widget-size="${esc(w.size||'2x1')}"`;
+  if(w.type==='clock') return `<button class="home-widget hw-clock" ${common}><small>NOW</small><b>${fmtTime()}</b><span>${new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'})}</span></button>`;
+  if(w.type==='thomas') return `<button class="home-widget hw-thomas" ${common} data-open="thomas"><small>THOMAS</small><b>${esc(S.settings.assistantName)}</b><span>${esc((S.notifications?.[0]?.text||'I am here.').slice(0,42))}</span></button>`;
+  if(w.type==='weather') return `<button class="home-widget hw-weather" ${common} data-open="weather"><small>WEATHER</small><b>${esc(S.weather.temp)}°</b><span>${esc(S.weather.city)} · ${esc(S.weather.desc)}</span></button>`;
+  if(w.type==='todo') return `<button class="home-widget hw-todo" ${common} data-open="todo"><small>TODAY</small><b>${due}</b><span>${due?'things left':'all clear'}</span></button>`;
+  if(w.type==='study') return `<button class="home-widget hw-study" ${common} data-open="study"><small>STUDY</small><b>${Math.floor(S.study.seconds/60)} min</b><span>${S.study.running?'focus running':'ready when you are'}</span></button>`;
+  if(w.type==='calendar') return `<button class="home-widget hw-calendar" ${common} data-open="calendar"><small>CALENDAR</small><b>${new Date().getDate()}</b><span>${S.events.filter(e=>e.date===today()).length} events today</span></button>`;
+  if(w.type==='profile') return `<button class="home-widget hw-profile" ${common} data-open="profile">${S.owner.avatar?`<img src="${esc(S.owner.avatar)}" alt="">`:`<i>${esc((S.owner.name||'E')[0])}</i>`}<div><small>PROFILE</small><b>${esc(S.owner.name||'Elsewhere user')}</b><span>@${esc(S.owner.handle||'elsewhere')}</span></div></button>`;
+  if(w.type==='note') return `<button class="home-widget hw-note" ${common} data-open="notes"><small>PINNED NOTE</small><b>${esc(note?.title||'untitled')}</b><span>${esc((note?.text||'Write something small.').slice(0,48))}</span></button>`;
+  if(w.type==='countdown') return `<button class="home-widget hw-countdown" ${common} data-open="countdown"><small>COUNTDOWN</small><b>${cd?Math.max(0,Math.ceil((new Date(cd.date)-new Date())/86400000)):'—'}</b><span>${esc(cd?.title||'nothing counting down')}</span></button>`;
+  if(w.type==='mood') return `<button class="home-widget hw-mood" ${common} data-open="mood"><small>MOOD</small><b>${mood?'★'.repeat(Math.max(1,Math.min(5,mood.value))):'—'}</b><span>${esc(mood?.note||'how are you feeling?')}</span></button>`;
+  if(w.type==='quote') return `<div class="home-widget hw-quote" ${common}><small>ELSEWHERE</small><b>“${esc(S.custom.quote||'same sky, different dreams.')}”</b></div>`;
+  if(w.type==='custom') return `<div class="home-widget hw-custom" ${common}><small>${esc(w.title||'LITTLE NOTE')}</small><b>${esc(w.text||'something of your own')}</b></div>`;
+  return '';
+}
+
+function pageWidgets(page){ return (S.custom.homeWidgets||[]).filter(w=>(Number(w.page)||0)===Number(page)); }
+function homeWidgetsHtml(page=0){ return pageWidgets(page).map(homeWidgetHtml).join(''); }
+function widgetManagerHtml(page='all'){
+  const all=(S.custom.homeWidgets||[]);
+  const current=page==='all'?all:all.filter(w=>(Number(w.page)||0)===Number(page));
+  const pageOptions=[0,1,2,3,4].map(i=>`<option value="${i}" ${String(page)===String(i)?'selected':''}>${i===0?'Today':`Page ${i}`}</option>`).join('');
+  return `<section class="widget-manager"><div class="widget-manager-toolbar"><label>显示页面<select data-widget-manager-page><option value="all" ${page==='all'?'selected':''}>全部页面</option>${pageOptions}</select></label><button data-widget-library-open>＋ Add Widget</button></div><div class="widget-current">${current.map((w,i)=>`<div><span><b>${esc(HOME_WIDGET_TYPES[w.type]||w.type)}</b><small>${w.type==='custom'?esc(w.title||'custom text'):`${(Number(w.page)||0)===0?'Today':`Page ${Number(w.page)||0}`} · ${esc(w.size||'2x1')}`}</small></span><button data-widget-edit="${esc(w.id)}">编辑</button><button data-widget-remove="${esc(w.id)}">×</button></div>`).join('')||'<p>No widgets on this page yet.</p>'}</div></section>`;
+}
+function widgetLibrarySheet(page=homePage){
+  const wrap=document.createElement('div'); wrap.className='ew-modal-wrap widget-library-sheet';
+  wrap.innerHTML=`<div class="ew-modal-scrim" data-widget-sheet-close></div><section class="ew-dialog ew-sheet"><div class="sheet-handle"></div><div class="sheet-title"><div><small>HOME SCREEN</small><h3>Add Widget</h3><p>${page===0?'Today':`Page ${page}`}</p></div><button data-widget-sheet-close>×</button></div><div class="widget-library">${Object.entries(HOME_WIDGET_TYPES).map(([type,name])=>`<button data-widget-add="${type}" data-widget-target-page="${page}"><span>＋</span><b>${esc(name)}</b></button>`).join('')}</div></section>`;
+  uiLayer().appendChild(wrap); requestAnimationFrame(()=>wrap.classList.add('show'));
+  wrap.querySelectorAll('[data-widget-sheet-close]').forEach(x=>x.onclick=()=>{wrap.classList.remove('show');setTimeout(()=>wrap.remove(),140)});
+  bindWidgetControls(wrap);
+}
+async function editWidgetSheet(id){
+  const w=(S.custom.homeWidgets||[]).find(x=>x.id===id); if(!w)return;
+  const values=await uiForm({
+    title:'Edit Widget',
+    subtitle:'一次改完，不会再一个字段一个字段弹。',
+    confirmText:'保存',
+    fields:[
+      {name:'page',label:'页面',type:'select',value:String(Number(w.page)||0),options:[['0','Today'],['1','Page 1'],['2','Page 2'],['3','Page 3'],['4','Page 4']]},
+      {name:'size',label:'尺寸',type:'select',value:w.size||'2x1',options:[['1x1','Small · 1×1'],['2x1','Wide · 2×1'],['2x2','Medium · 2×2'],['4x2','Large · 4×2']]},
+      ...(w.type==='custom'?[{name:'title',label:'标题',value:w.title||'little note'},{name:'text',label:'内容',multiline:true,value:w.text||''}]:[])
+    ]
+  });
+  if(!values)return;
+  w.page=Number(values.page)||0; w.size=values.size||'2x1';
+  if(w.type==='custom'){w.title=values.title||'little note';w.text=values.text||''}
+  save(); render(); uiToast('Widget 已更新');
+}
+function bindWidgetControls(root=document){
+  $$('[data-widget-add]',root).forEach(x=>x.onclick=async()=>{
+    const type=x.dataset.widgetAdd; const page=Number(x.dataset.widgetTargetPage ?? homePage)||0;
+    const w={id:'hw-'+uid(),type,page,size:'2x1'};
+    if(type==='custom'){
+      const values=await uiForm({title:'Custom Widget',subtitle:'标题和内容在同一张编辑卡里。',fields:[
+        {name:'title',label:'标题',value:'little note',placeholder:'例如：this week'},
+        {name:'text',label:'内容',multiline:true,value:'',placeholder:'写一点想放在主页上的内容…'},
+        {name:'size',label:'尺寸',type:'select',value:'2x1',options:[['1x1','Small · 1×1'],['2x1','Wide · 2×1'],['2x2','Medium · 2×2'],['4x2','Large · 4×2']]}
+      ]});
+      if(!values)return; w.title=values.title||'little note';w.text=values.text||'';w.size=values.size||'2x1';
+    }
+    S.custom.homeWidgets ||= []; S.custom.homeWidgets.push(w); save(); uiLayer().querySelector('.widget-library-sheet')?.remove(); render(); uiToast(`Widget 已加入 ${page===0?'Today':`Page ${page}`}`);
+  });
+  $$('[data-widget-remove]',root).forEach(x=>x.onclick=()=>{S.custom.homeWidgets=(S.custom.homeWidgets||[]).filter(w=>w.id!==x.dataset.widgetRemove);save();render()});
+  $$('[data-widget-edit]',root).forEach(x=>x.onclick=()=>editWidgetSheet(x.dataset.widgetEdit));
+  $('[data-widget-library-open]',root)?.addEventListener('click',()=>widgetLibrarySheet(homePage));
+  $('[data-widget-manager-page]',root)?.addEventListener('change',e=>{const v=e.target.value; const old=root.querySelector('.widget-manager'); if(old){old.replaceWith(htmlToElement(widgetManagerHtml(v))); bindWidgetControls(root);}});
+}
+function htmlToElement(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild}
+
+function home(){
+  const now=new Date(), day=now.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
+  const layout=ensureHomeLayout().filter(k=>String(k).startsWith('folder:')||!S.custom.hiddenApps.includes(k));
+  const pages=[]; for(let i=0;i<layout.length;i+=12) pages.push(layout.slice(i,i+12)); if(!pages.length)pages.push([]);
+  const pageCount=Math.max(pages.length, Math.max(1,...(S.custom.homeWidgets||[]).map(w=>Number(w.page)||0)));
+  while(pages.length<pageCount)pages.push([]);
+  const widgetZone=pi=>`<section class="home-widget-grid page-widget-zone" data-widget-zone="${pi}">${homeWidgetsHtml(pi)}</section>`;
+  const appsPage=(items,label,pi)=>`<section class="home-page app-page" data-app-page="${pi}" ${pageWallpaperStyle(pi)}><div class="page-kicker"><span>${label}</span><div class="page-tools"><button class="page-add-widget" data-widget-library-page="${pi}" aria-label="Add Widget">＋</button>${homeEdit?'<button data-edit-done>完成</button>':''}</div></div>${widgetZone(pi)}<div class="phone-app-grid">${items.map(homeEntry).join('')}</div>${!items.length&&!pageWidgets(pi).length?'<div class="empty-home-page">这一页还是空的。</div>':''}</section>`;
+  return `<section class="home swipe-home ${homeEdit?'home-edit':''}">
+    <div class="home-pages" id="homePages">
+      <section class="home-page today-page" data-app-page="0" ${pageWallpaperStyle(0)}>
+        <div class="tumblr-statusline"><span>${day}</span><div class="today-tools"><span>elsewhere</span><button class="page-add-widget" data-widget-library-page="0" aria-label="Add Widget">＋</button></div></div>
+        <header class="tumblr-brand"><small>${esc(S.custom.tagline||'A SMALL PHONE, A BIGGER YOU')}</small><h1>${esc(S.custom.title)}</h1><div><p>${esc(S.custom.subtitle)}</p><em>${esc(S.custom.quote)}</em></div></header>
+        ${S.custom.showHomeAvatar?`<button class="home-profile-chip" data-open="profile">${S.owner.avatar?`<img src="${esc(S.owner.avatar)}" alt="">`:`<span>${esc((S.owner.name||'E')[0])}</span>`}<div><b>${esc(S.owner.name||'Elsewhere user')}</b><small>@${esc(S.owner.handle||'elsewhere')}</small></div></button>`:''}
+        ${widgetZone(0)}
+      </section>
+      ${pages.map((p,i)=>appsPage(p,`home · ${String(i+1).padStart(2,'0')}`,i+1)).join('')}
+    </div>
+    <div class="home-page-dots" aria-label="主页分页">${[null,...pages].map((_,i)=>`<button data-home-dot="${i}" class="${i===homePage?'active':''}" aria-label="第 ${i+1} 页"></button>`).join('')}</div>
+    ${homeEdit?`<div class="home-edit-bar"><button data-widget-library-open>＋ Widget</button><button data-folder-new>＋ 文件夹</button><button data-page-wallpaper>壁纸</button><button data-edit-done>完成</button></div>`:''}
+    <nav class="tumblr-dock text-dock phone-dock"><button data-open="messages">消息</button><button data-open="thomas">Thomas</button><button data-open="social">社交</button><button data-open="profile">我</button></nav>
+  </section>`;
+}
+function orderedApps(){const order=S.custom?.appOrder||[];return [...apps].sort((a,b)=>{const ai=order.indexOf(a[0]),bi=order.indexOf(b[0]);return (ai<0?999:ai)-(bi<0?999:bi)});}
+function view(k,arg){
+  if(k==='player') return playerView(arg);
+  const map={thomas:thomasView,messages:messagesView,moments:momentsView,photos:photosView,todo:todoView,calendar:calendarView,study:studyView,food:foodView,fitness:fitnessView,weather:weatherView,finance:financeView,habits:habitsView,notes:notesView,diary:diaryView,mood:moodView,sleep:sleepView,countdown:countdownView,wishlist:wishlistView,bookmarks:bookmarksView,customize:customizeView,contacts:contactsView,world:worldView,social:socialView,profile:profileView,phone:characterPhoneView,settings:settingsView};
+  return (map[k]||(()=>header('Elsewhere')+'<main class="page">nothing here yet.</main>'))(arg);
+}
+
+function thomasView(){
+  const p=S.settings.thomasProfile;
+  return `${header(S.settings.assistantName,'always here for you.','<button class="text-action" data-thomas-style>语气</button><button class="text-action" data-thomas-clear>清空</button>')}<main class="chat-page thomas-page"><div class="assistant-intro"><div class="thomas-portrait">T</div><div><b>${esc(S.settings.assistantName)}</b><p>聊天陪伴 · 生活助手 · 会慢慢学会你的偏好</p></div></div><div class="thomas-tone-chip">温柔 ${p.warmth} · 毒舌 ${p.sass} · 主动 ${p.initiative} · ${p.learn?'正在学习你的反馈':'固定语气'}</div><div class="quick-row"><button data-thomas-quick="帮我看看今天还有什么没做">整理今天</button><button data-thomas-quick="帮我记录一下今天的心情">记录心情</button><button data-thomas-quick="给我一个25分钟专注建议">开始专注</button></div><div class="messages" id="thomasMessages">${S.thomas.map(m=>bubble(m,null)).join('')}</div></main><div class="composer"><textarea id="thomasInput" placeholder="和 Thomas 聊聊，或直接告诉他‘少一点客服腔’…"></textarea><button class="send-text" data-thomas-send>发送</button></div>`;
+}
+function bubble(m,c){const body=m.type==='voice'?`<button class="voice-bubble" data-play-voice="${m.id}">▶ ${m.seconds||Math.max(2,Math.min(18,Math.ceil((m.text||'').length/4)))}" <span>${esc(m.text||'语音消息')}</span></button>`:`<div class="bubble">${esc(m.text)}</div>`;return `<div class="msg ${m.role==='user'?'mine':''}">${m.role==='assistant'?avatar(c,'sm'):''}<div>${body}<small>${fmtTime(m.ts)}</small></div></div>`}
+function messagesView(arg){
+  if(arg) return chatView(arg);
+  return `${header('消息','messages')}<main class="page">${S.characters.map(c=>{const list=S.chats[c.id]||[]; const last=list.at(-1); return `<button class="person-row" data-chat="${c.id}">${avatar(c)}<span><b>${esc(c.name)}</b><small>${esc(last?.text||'还没有消息')}</small></span><i>${last?fmtTime(last.ts):''}</i></button>`}).join('')}</main>`;
+}
+function chatView(id){const c=ch(id); const list=S.chats[id]||[]; return `${header(c.name,c.status,'<button class="text-action" data-call="'+id+'">通话</button>')}<main class="chat-page"><div class="messages">${list.map(m=>bubble(m,c)).join('')}</div></main><div class="composer"><button class="mini-compose" data-voice-send="${id}">语音</button><textarea id="chatInput" placeholder="发点什么…"></textarea><button class="send-text" data-chat-send="${id}">发送</button></div>`}
+function momentsView(){return `${header('朋友圈','moments','<button class="round" data-new-moment>new</button>')}<main class="page tumblr-moments">${[...S.moments].sort((a,b)=>b.ts-a.ts).map(p=>{const c=ch(p.who)||{name:S.owner.name,initial:'A',color:'#aa566b'};const comments=p.comments||[];return `<article class="tumblr-post"><div class="posthead">${avatar(c,'sm')}<span><b>${esc(c.name)}</b><small>${rel(p.ts)}</small></span></div><p>${esc(p.text)}</p>${p.image?`<img src="${p.image}">`:''}<footer><button data-like="${p.id}">${p.likes||0} likes</button><button data-comment="${p.id}">${comments.length} notes</button></footer>${comments.length?`<div class="notes-thread">${comments.map(x=>`<p><b>${esc(ch(x.who)?.name||x.who)}</b> ${esc(x.text)}</p>`).join('')}</div>`:''}</article>`}).join('')}</main>`}
+function todoView(){
+  const todos=todoTab==='done'?S.todos.filter(t=>t.done):S.todos.filter(t=>!t.done);
+  const content=todoTab==='habits'
+    ? `<div class="habit-mini-list airy-habits">${S.habits.map(h=>`<button data-habit="${h.id}" class="habit-mini ${h.done?'done':''}"><span><b>${esc(h.name)}</b><small>${esc(h.detail||'today')}</small></span><em>${h.done?'已完成':`${h.streak||0} day streak`}</em></button>`).join('')}</div>`
+    : `<div class="paper-list airy-todos">${todos.length?todos.map(t=>`<label class="todo-row"><input type="checkbox" data-todo="${t.id}" ${t.done?'checked':''}><span>${esc(t.text)}</span><button data-del-todo="${t.id}">删除</button></label>`).join(''):'<div class="empty-paper">这里暂时是空的。</div>'}</div>`;
+  return `${header('待办','todo','<button class="text-action" data-add-todo>新增</button>')}<main class="page todo-page-air"><div class="tabs clickable-tabs"><button data-todo-tab="todo" class="${todoTab==='todo'?'active':''}">待办</button><button data-todo-tab="habits" class="${todoTab==='habits'?'active':''}">习惯</button><button data-todo-tab="done" class="${todoTab==='done'?'active':''}">已完成</button></div>${content}</main>`
+}
+function calendarView(){
+  const ds=[...S.events].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)), now=new Date();
+  const first=new Date(now.getFullYear(),now.getMonth(),1), offset=first.getDay(), days=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+  const cells=[...Array(offset).fill(null),...Array.from({length:days},(_,i)=>i+1)];
+  return `${header('日历','calendar','<button class="round blush-plus" data-add-event>＋</button>')}<main class="page couture-page calendar-couture">
+    <section class="calendar-title-card"><small>GOOD PLANS · SOFTER DAYS</small><h2>Calendar</h2><span>make room for little joys</span></section>
+    <section class="calendar-card couture-calendar"><div class="calendar-month"><b>${now.getFullYear()}年${now.getMonth()+1}月</b><span>‹ &nbsp;&nbsp; ›</span></div><div class="week">${['日','一','二','三','四','五','六'].map(x=>`<span>${x}</span>`).join('')}</div><div class="date-dots">${cells.map(d=>d?`<span class="${d===now.getDate()?'today':''}">${d}${S.events.some(e=>e.date===`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)?'<i class="event-dot"></i>':''}</span>`:'<span></span>').join('')}</div></section>
+    <section class="day-agenda"><div class="agenda-head"><div><small>TODAY'S LITTLE PLAN</small><h3>${now.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})}</h3></div><button data-add-event>＋</button></div>${ds.map((e)=>`<div class="agenda-row minimal-agenda"><time>${esc(e.time||'--:--')}</time><div><b>${esc(e.title)}</b><small>${esc(e.date)}</small></div><button class="row-text-action" data-del-event="${e.id}">移除</button></div>`).join('')}</section>
+    <div class="torn-quote">Discipline is a form of self-love. <span>Elsewhere</span></div>
+  </main>`;
+}
+function studyView(){const sec=S.study.seconds; const mm=String(Math.floor(sec/60)).padStart(2,'0'), ss=String(sec%60).padStart(2,'0');return `${header('书房','study room')}<main class="page"><div class="study-hero"><span>“ 专注是一种温柔的力量。 ”</span></div><div class="timer-card"><div class="tabs"><b>番茄钟</b><span>自定义</span></div><div class="timer" id="timerText">${mm}:${ss}</div><button class="play" data-study-toggle>${S.study.running?'Ⅱ':'▶'}</button><small>今日专注：${S.study.totalMinutes} 分钟</small></div><div class="study-menu"><button data-study-reset="25">25 MIN · CLASSIC</button><button data-study-reset="45">45 MIN · DEEP WORK</button><button data-open="notes">学习笔记</button><button data-open="habits">学习习惯</button></div></main>`}
+function foodView(){const total=S.food.reduce((n,x)=>n+Number(x.kcal||0),0);return `${header('饮食','food','<button class="round" data-add-food>＋</button>')}<main class="page"><div class="stats-card"><span><b>${total}</b><small>/ 2000 kcal</small></span><div class="progress"><i style="width:${Math.min(100,total/20)}%"></i></div></div>${S.food.map(f=>`<div class="meal-row"><div><b>${esc(f.meal)}</b><p>${esc(f.name)}</p></div><strong>${f.kcal} kcal</strong><button data-del-food="${f.id}">×</button></div>`).join('')}<div class="water-card"><b>喝水</b><span>${S.water} / 2000 ml</span><div class="progress"><i style="width:${Math.min(100,S.water/20)}%"></i></div><div><button data-water="-250">−250</button><button data-water="250">＋250</button></div></div></main>`}
+function fitnessView(){const mins=S.fitness.reduce((a,x)=>a+Number(x.minutes||0),0), kcal=S.fitness.reduce((a,x)=>a+Number(x.kcal||0),0);return `${header('健身','fitness','<button class="round" data-add-workout>＋</button>')}<main class="page"><div class="fitness-summary"><b>${mins}</b><span>MIN TODAY</span><b>${kcal}</b><span>KCAL</span></div>${S.fitness.map(x=>`<div class="meal-row"><div><b>${esc(x.name)}</b><p>${x.minutes} 分钟</p></div><strong>${x.kcal} kcal</strong><button data-del-workout="${x.id}">×</button></div>`).join('')}</main>`}
+function weatherView(){return `${header('天气','weather')}<main class="page"><div class="weather-big"><span>${esc(S.weather.city)}</span><b>${esc(S.weather.temp)}°</b><p>${esc(S.weather.desc)}</p><small>${esc(S.weather.low)}° — ${esc(S.weather.high)}°</small></div><button class="primary wide" data-weather-refresh>${S.weather.loading?'正在获取…':'使用当前位置更新天气'}</button><p class="hint">天气通过浏览器定位 + Open‑Meteo 获取；拒绝定位时会保留当前天气卡。</p></main>`}
+function financeView(){const income=S.finance.filter(x=>x.type==='income').reduce((a,x)=>a+Number(x.amount),0), expense=S.finance.filter(x=>x.type==='expense').reduce((a,x)=>a+Number(x.amount),0);return `${header('记账','finance','<button class="round" data-add-money>＋</button>')}<main class="page"><div class="money-card"><small>本月结余</small><b>RM ${(income-expense).toFixed(2)}</b><div><span>收入 RM ${income.toFixed(2)}</span><span>支出 RM ${expense.toFixed(2)}</span></div></div>${S.finance.map(x=>`<div class="money-row"><span>${x.type==='income'?'＋':'−'}</span><b>${esc(x.name)}</b><i>${x.type==='income'?'+':'-'} RM ${Number(x.amount).toFixed(2)}</i><button data-del-money="${x.id}">×</button></div>`).join('')}</main>`}
+function habitsView(){return `${header('习惯','habit tracker','<button class="text-action" data-add-habit>新增</button>')}<main class="page habit-page"><section class="habit-paper"><small>DAILY RHYTHM</small><h2>今天，慢慢来。</h2><p>不需要把每件事都变成图标。这里只留下进度、节奏和你真正想坚持的事。</p></section><div class="habit-list">${S.habits.map(h=>`<button data-habit="${h.id}" class="habit-line ${h.done?'done':''}"><span><b>${esc(h.name)}</b><small>${esc(h.detail||'today')}</small></span><div><em>${h.streak||0} day streak</em><strong>${h.done?'完成':'打卡'}</strong></div></button>`).join('')}</div></main>`}
+
+function notesView(){return `${header('笔记','notes','<button class="round" data-add-note>＋</button>')}<main class="page note-grid">${S.notes.map(n=>`<article class="note"><b>${esc(n.title)}</b><p>${esc(n.text)}</p><button data-del-note="${n.id}">×</button></article>`).join('')}</main>`}
+function diaryView(){return `${header('日记','diary','<button class="round" data-add-diary>＋</button>')}<main class="page">${[...S.diary].reverse().map(d=>`<article class="diary-entry"><small>${esc(d.date)}</small><p>${esc(d.text)}</p><button data-del-diary="${d.id}">×</button></article>`).join('')}</main>`}
+function photosView(){return `${header('相册','photos','<button class="round" data-photo-add>＋</button>')}<main class="page"><div class="photo-grid">${S.photos.length?S.photos.map(p=>`<div class="photo" style="background-image:url('${p.data}')"><button data-del-photo="${p.id}">×</button></div>`).join(''):'<div class="empty-paper">还没有照片。<br>点右上角把自己的图片放进 Elsewhere。</div>'}</div></main>`}
+
+function moodView(){const latest=S.moods?.[0];const labels=['很低','低','一般','不错','很好'];return `${header('心情','mood journal','<button class="text-action" data-add-mood>记录</button>')}<main class="page"><div class="mood-hero"><small>TODAY FEELS LIKE</small><h2>${latest?.note?esc(latest.note):labels[(latest?.value||4)-1]}</h2></div><div class="mood-scale text-mood">${labels.map((f,i)=>`<button data-mood="${i+1}" class="${latest?.value===i+1?'active':''}"><b>${f}</b></button>`).join('')}</div><h3 class="section-title">最近的心情</h3>${(S.moods||[]).map(m=>`<div class="journal-row"><time>${esc(m.date)}</time><b>${labels[(m.value||3)-1]}</b><span>${esc(m.note||'')}</span></div>`).join('')}</main>`}
+
+function sleepView(){const avg=(S.sleep||[]).length?((S.sleep.reduce((a,x)=>a+Number(x.hours||0),0))/S.sleep.length).toFixed(1):'0';return `${header('睡眠','sleep archive','<button class="round" data-add-sleep>＋</button>')}<main class="page"><div class="sleep-hero"><small>7 DAY RHYTHM</small><b>${avg}<i>h</i></b><p>不追求完美，只收藏自己的节奏。</p></div>${(S.sleep||[]).map(x=>`<div class="sleep-row"><span>${esc(x.date)}</span><div><i style="width:${Math.min(100,Number(x.hours||0)/9*100)}%"></i></div><b>${x.hours}h · ${'★'.repeat(x.quality||3)}</b></div>`).join('')}</main>`}
+function countdownView(){return `${header('倒数日','countdown','<button class="round" data-add-countdown>＋</button>')}<main class="page countdown-grid">${(S.countdowns||[]).map(x=>{const d=Math.ceil((new Date(x.date+'T00:00:00')-new Date(today()+'T00:00:00'))/86400000);return `<article class="countdown-card"><small>${d>=0?'IN':'AGO'}</small><b>${Math.abs(d)}</b><i>DAYS</i><h3>${esc(x.title)}</h3><p>${esc(x.date)}</p><button data-del-countdown="${x.id}">×</button></article>`}).join('')}</main>`}
+function wishlistView(){return `${header('愿望清单','little wishes','<button class="round" data-add-wish>＋</button>')}<main class="page"><div class="wish-intro">things I would like to meet, make, buy or become.</div>${(S.wishlist||[]).map(x=>`<label class="wish-row"><input type="checkbox" data-wish="${x.id}" ${x.done?'checked':''}><span>${esc(x.text)}</span><button data-del-wish="${x.id}">×</button></label>`).join('')}</main>`}
+function bookmarksView(){return `${header('收藏','bookmarks','<button class="round" data-add-bookmark>＋</button>')}<main class="page"><div class="bookmark-grid">${(S.bookmarks||[]).map(x=>`<article class="bookmark-card"><small>SAVED LINK</small><b>${esc(x.title)}</b><p>${esc(x.url)}</p><div><button data-open-link="${esc(x.url)}">打开</button><button data-del-bookmark="${x.id}">删除</button></div></article>`).join('')}</div></main>`}
+function customizeView(){
+  const c=S.custom;
+  return `${header('Customise','make it completely yours')}<main class="page tumblr-custom">
+    <section class="custom-preview-card phone-custom-preview"><div class="mini-desktop"><b>${esc(c.title)}</b><small>${esc(c.quote)}</small><div class="mini-icon-grid"><i>★</i><i>★</i><i>★</i><i>★</i><i>★</i><i>★</i></div></div><div><small>HOME SCREEN</small><h2>clean,<br>personal.</h2><p>像真正的小手机一样整理主页：长按 App 编辑、拖动换页、建立文件夹，并且每一页都能有自己的壁纸。</p></div></section>
+    <h3 class="section-title">themes</h3><div class="theme-grid couture-themes">${Object.entries(themes).map(([id,t])=>`<button data-theme="${id}" class="${S.theme===id?'active':''}" style="--sample:${t.wall}"><span></span><b>${esc(t.name)}</b></button>`).join('')}</div>
+    <h3 class="section-title">home details</h3><div class="custom-toggle-grid"><label><span>主页显示头像<small>点头像直接进入个人资料</small></span><input type="checkbox" data-custom-toggle="showHomeAvatar" ${c.showHomeAvatar?'checked':''}></label><label><span>点击特效<small>选择页面点击时的小动画</small></span><select data-custom-select="clickEffect"><option value="sparkle" ${c.clickEffect==='sparkle'?'selected':''}>星光</option><option value="heart" ${c.clickEffect==='heart'?'selected':''}>小心心</option><option value="petal" ${c.clickEffect==='petal'?'selected':''}>花瓣</option><option value="none" ${c.clickEffect==='none'?'selected':''}>关闭</option></select></label><label><span>特效强度<small>保持轻一点会更耐看</small></span><input type="range" min="1" max="4" value="${c.effectStrength||2}" data-custom-range="effectStrength"></label></div>
+    <h3 class="section-title">home widgets</h3><p class="custom-help">Widget 可以放到任何主页。长按桌面进入编辑，或在这里统一管理；所有编辑会在同一张面板里完成。</p>${widgetManagerHtml()}
+    <h3 class="section-title">apps</h3><p class="custom-help">默认统一使用小星星，保持整齐。点 App 可以改名、隐藏，或上传自己的图片作为图标。</p><div class="visual-app-manager clean-app-manager">${orderedApps().map(a=>{const al=c.aliases[a[0]]||{};return `<button draggable="true" data-app-tile="${a[0]}" data-app-edit="${a[0]}" class="${c.hiddenApps.includes(a[0])?'is-hidden':''}">${al.src?`<img src="${esc(al.src)}">`:'<span class="no-icon-preview star-preview">★</span>'}<span><b>${esc(al.label||a[2])}</b><small>${c.hiddenApps.includes(a[0])?'hidden':'tap to edit'}</small></span></button>`}).join('')}</div>
+    <h3 class="section-title">type & colour</h3><div class="custom-form couture-form"><label>title<input data-custom="title" value="${esc(c.title)}"></label><label>subtitle<input data-custom="subtitle" value="${esc(c.subtitle)}"></label><label>little sentence<input data-custom="quote" value="${esc(c.quote)}"></label></div><div class="color-row couture-colors"><label><span>pink</span><input type="color" data-custom-color="accent" value="${c.accent||'#c96f8a'}"></label><label><span>paper</span><input type="color" data-custom-color="paper" value="${c.paper||'#fff7f8'}"></label><label><span>ink</span><input type="color" data-custom-color="ink" value="${c.ink||'#49363d'}"></label></div>
+    <div class="custom-air-controls"><label>桌面间距 <b>${c.spacing||18}px</b><input type="range" min="10" max="30" value="${c.spacing||18}" data-custom-range="spacing" data-suffix="px"></label><label>卡片透明度 <b>${c.cardOpacity||82}%</b><input type="range" min="45" max="100" value="${c.cardOpacity||82}" data-custom-range="cardOpacity" data-suffix="%"></label><label>圆角 <b>${c.radius||24}px</b><input type="range" min="4" max="34" value="${c.radius||24}" data-custom-range="radius" data-suffix="px"></label></div>
+    <button class="primary wide couture-primary" data-wallpaper>upload default wallpaper</button><button class="paper-button wide" data-custom-reset>restore Pink Dream</button>
+  </main>`;
+}
+
+function profileCard(p,actions=''){
+  const av=p.avatar?`<img src="${esc(p.avatar)}" alt="">`:`<span>${esc((p.name||'?').slice(0,1))}</span>`;
+  return `<article class="player-card"><div class="profile-banner" ${p.banner?`style="background-image:url('${esc(p.banner)}')"`:''}></div><div class="profile-main"><div class="player-avatar">${av}</div><div class="player-copy"><h3>${esc(p.name||'Elsewhere user')}</h3><small>@${esc(p.handle||'user')}</small><p>${esc(p.bio||'')}</p><em>${esc(p.status||'')}</em></div></div>${actions}</article>`;
+}
+async function socialSync(){
+  try{
+    const r=await fetch('/api/social/profiles'); if(!r.ok)throw 0; const d=await r.json(); S.social.feed=d.posts||[]; S.social.profiles=d.profiles||[]; S.social.lastSync=Date.now(); save();
+  }catch{}
+}
+function socialView(){
+  const profiles=(S.social.profiles||[]).filter(p=>p.id!==S.social.userId);
+  const posts=S.social.feed||[];
+  return `${header('社交','community','<button class="text-action" data-social-refresh>刷新</button>')}<main class="page social-page"><section class="social-intro"><small>ELSEWHERE COMMUNITY</small><h2>和别人的小手机，轻轻碰个面。</h2><p>同一个部署地址里的玩家可以公开资料、关注彼此、发短帖和留言。</p><button class="paper-button" data-social-post>写一条</button></section><h3 class="section-title">people</h3><div class="people-strip">${profiles.length?profiles.map(p=>`<button data-view-player="${esc(p.id)}"><span class="mini-player-avatar">${p.avatar?`<img src="${esc(p.avatar)}">`:esc((p.name||'?')[0])}</span><b>${esc(p.name)}</b><small>@${esc(p.handle||'user')}</small></button>`).join(''):'<p class="quiet-copy">还没有其他玩家出现。部署给朋友后，他们会显示在这里。</p>'}</div><h3 class="section-title">notes from elsewhere</h3><div class="community-feed">${posts.length?posts.map(post=>{const p=(S.social.profiles||[]).find(x=>x.id===post.author)||{name:'someone',handle:'elsewhere'};return `<article class="community-post"><header><b>${esc(p.name)}</b><small>@${esc(p.handle||'user')} · ${rel(post.ts)}</small></header><p>${esc(post.text)}</p><footer><button data-social-like="${post.id}">${post.likes||0} likes</button><button data-social-notes="${post.id}">${(post.notes||[]).length} notes</button></footer>${post._open?`<div class="community-notes">${(post.notes||[]).map(n=>`<p><b>${esc(n.name||'someone')}</b> ${esc(n.text)}</p>`).join('')}<button data-social-reply="${post.id}">写留言</button></div>`:''}</article>`}).join(''):'<div class="empty-paper">这里还很安静。你可以成为第一条。</div>'}</div></main>`;
+}
+function profileView(){
+  const me={id:S.social.userId,...S.owner}; const following=(S.social.following||[]).length;
+  return `${header('我','profile','<button class="text-action" data-edit-profile>编辑</button>')}<main class="page profile-page">${profileCard(me,`<div class="profile-stats"><span><b>${following}</b><small>following</small></span><span><b>${(S.social.feed||[]).filter(p=>p.author===S.social.userId).length}</b><small>posts</small></span><span><b>${S.characters.length}</b><small>characters</small></span></div>`)}<div class="profile-actions"><button data-open="social">去社交页</button><button data-profile-avatar>更换头像</button><button data-profile-banner>更换封面</button></div><section class="profile-paper"><small>ABOUT THIS PHONE</small><p>${esc(S.custom.quote||'')}</p><div>${(S.owner.tags||[]).map(t=>`<span>${esc(t)}</span>`).join('')}</div></section></main>`;
+}
+function playerView(id){
+  const p=(S.social.profiles||[]).find(x=>x.id===id); if(!p)return socialView(); const following=(S.social.following||[]).includes(id);
+  return `${header(p.name||'player','community profile')}<main class="page profile-page">${profileCard(p,`<div class="profile-actions"><button data-follow-player="${esc(id)}">${following?'取消关注':'关注'}</button></div>`)}<h3 class="section-title">recent notes</h3><div class="community-feed">${(S.social.feed||[]).filter(x=>x.author===id).map(post=>`<article class="community-post"><p>${esc(post.text)}</p><footer>${post.likes||0} likes · ${(post.notes||[]).length} notes</footer></article>`).join('')||'<div class="empty-paper">还没有公开内容。</div>'}</div></main>`;
+}
+function contactsView(){return `${header('角色','characters','<button class="round" data-add-char>＋</button>')}<main class="page">${S.characters.map(c=>{const r=S.relationships[c.id]||{score:50,label:'熟悉',secrets:[]};return `<div class="person-row rich">${avatar(c)}<span><b>${esc(c.name)}</b><small>${esc(c.relation)} · ${r.score}/100 ${esc(r.label)}</small></span><div class="person-actions"><button class="pill" data-chat="${c.id}">聊天</button><button class="pill" data-peek="${c.id}">偷看手机</button><button class="pill" data-call="${c.id}">通话</button></div><button data-del-char="${c.id}">×</button></div>`}).join('')}<div class="setting-list"><button data-card-export>导出全部角色卡 <i>›</i></button><button data-card-import>导入角色卡 <i>›</i></button></div></main>`}
+function widgetHtml(w){
+  if(w.type==='thomas') return `<button class="desk-widget w-thomas" data-widget="${w.id}" style="left:${w.x}px;top:${w.y}px" data-open="thomas"><small>THOMAS · ASSISTANT</small><b>${S.todos.filter(t=>!t.done).length} things left</b><i>drag me</i></button>`;
+  const n=S.notes[0]; return `<button class="desk-widget w-note" data-widget="${w.id}" style="left:${w.x}px;top:${w.y}px" data-open="notes"><small>PINNED NOTE</small><b>${esc(n?.title||'untitled')}</b><i>${esc((n?.text||'').slice(0,35))}</i></button>`;
+}
+function worldView(){const log=[...S.privateChats].sort((a,b)=>b.ts-a.ts);return `${header('世界','world engine','<button class="round" data-world-pulse>✦</button>')}<main class="page"><div class="world-card"><small>ACTIVE WORLD</small><h2>${esc(S.worlds.find(w=>w.id===S.activeWorld)?.name||'Main World')}</h2><p>角色会在你离开时继续留下痕迹：主动消息、朋友圈、私聊、秘密与关系变化。</p><button class="primary wide" data-world-pulse>推进世界一次</button></div><h3 class="section-title">世界存档</h3><div class="setting-list">${S.worlds.map(w=>`<button data-world-switch="${w.id}">${w.id===S.activeWorld?'● ':'○ '}${esc(w.name)}<i>›</i></button>`).join('')}<button data-world-new>＋ 新建世界存档<i>›</i></button></div><h3 class="section-title">角色之间</h3>${log.length?log.map(x=>`<article class="private-chat"><small>${rel(x.ts)} · ${esc(ch(x.a)?.name||x.a)} × ${esc(ch(x.b)?.name||x.b)}</small>${x.messages.map(m=>`<p><b>${esc(ch(m.who)?.name||m.who)}：</b>${esc(m.text)}</p>`).join('')}</article>`).join(''):'<div class="empty-paper">还没有留下角色之间的私聊。</div>'}</main>`}
+function characterPhoneView(id){const c=ch(id);if(!c)return header('角色手机')+'<main class="page">not found</main>';const r=S.relationships[id]||{score:50,label:'熟悉',secrets:[]};const mem=S.memories[id]||[];const privateThreads=S.privateChats.filter(x=>x.a===id||x.b===id);return `${header(c.name+' 的手机','private phone')}<main class="page"><div class="phone-peek"><div class="peek-lock">${avatar(c)}<h2>${esc(c.name)}</h2><small>${r.score}/100 · ${esc(r.label)}</small></div><div class="peek-grid"><div><small>MEMORY</small><b>${mem.length}</b><span>长期记忆</span></div><div><small>SECRETS</small><b>${r.secrets.length}</b><span>未说出口</span></div><div><small>CHATS</small><b>${privateThreads.length}</b><span>私人对话</span></div><div><small>CALLS</small><b>${S.callLogs.filter(x=>x.character===id).length}</b><span>通话记录</span></div></div></div><h3 class="section-title">长期记忆</h3>${mem.map(m=>`<div class="memory-row"><span>✦</span><p>${esc(m.text)}</p><small>${'★'.repeat(Math.max(1,m.importance||1))}</small></div>`).join('')||'<div class="empty-paper">还没有形成长期记忆。</div>'}<h3 class="section-title">秘密</h3>${r.secrets.map(x=>`<div class="secret-note">${esc(x)}</div>`).join('')||'<div class="empty-paper">暂时没有秘密。</div>'}<h3 class="section-title">角色私聊</h3>${privateThreads.map(x=>`<article class="private-chat">${x.messages.map(m=>`<p><b>${esc(ch(m.who)?.name||m.who)}：</b>${esc(m.text)}</p>`).join('')}</article>`).join('')||'<div class="empty-paper">没有发现私聊。</div>'}</main>`}
+function settingsView(){const p=S.settings.thomasProfile;return `${header('设置','settings')}<main class="page"><h3 class="section-title">主题</h3><div class="theme-grid">${Object.entries(themes).map(([id,t])=>`<button data-theme="${id}" class="${S.theme===id?'active':''}" style="--sample:${t.wall}"><span></span><b>${esc(t.name)}</b></button>`).join('')}</div><h3 class="section-title">Thomas · 语气养成</h3><div class="thomas-settings"><label>温柔度 <b>${p.warmth}</b><input type="range" min="0" max="100" value="${p.warmth}" data-thomas-range="warmth"></label><label>毒舌度 <b>${p.sass}</b><input type="range" min="0" max="100" value="${p.sass}" data-thomas-range="sass"></label><label>主动程度 <b>${p.initiative}</b><input type="range" min="0" max="100" value="${p.initiative}" data-thomas-range="initiative"></label><label>正式程度 <b>${p.formality}</b><input type="range" min="0" max="100" value="${p.formality}" data-thomas-range="formality"></label><label>话多程度 <b>${p.verbosity}</b><input type="range" min="0" max="100" value="${p.verbosity}" data-thomas-range="verbosity"></label><label class="thomas-field">Thomas 怎么称呼你<input value="${esc(p.address)}" data-thomas-address></label><label class="thomas-field">基础人格<textarea data-thomas-base>${esc(p.base)}</textarea></label><label class="learn-toggle"><input type="checkbox" data-thomas-learn ${p.learn?'checked':''}> 根据聊天反馈慢慢调整语气</label><small>已学会 ${S.settings.thomasLearned.length} 条偏好。你也可以直接对 Thomas 说“别这么官方”“再毒舌一点”“以后叫我 Ann”。</small><button class="pill" data-thomas-forget>清除已学习的语气偏好</button></div><h3 class="section-title">主页 Widgets</h3><p class="hint">每个 Widget 都可以选择页面和尺寸，也可以重复加入同一种。</p>${widgetManagerHtml()}<h3 class="section-title">Elsewhere</h3><div class="setting-list"><button data-wallpaper>更换自己的壁纸 <i>›</i></button><button data-export>导出数据 <i>›</i></button><button data-import>导入数据 <i>›</i></button><button data-reset class="danger">重置小手机 <i>›</i></button></div><p class="hint">Thomas 在部署了 OPENAI_API_KEY 时会优先使用 AI；没有 Key 也可以使用本地生活助手逻辑。</p></main>`}
+
+function uiLayer(){
+  let layer=document.querySelector('#uiLayer');
+  if(!layer){ layer=document.createElement('div'); layer.id='uiLayer'; document.body.appendChild(layer); }
+  return layer;
+}
+function uiClose(result=null){
+  const layer=uiLayer(); const active=layer.querySelector('.ew-modal-wrap');
+  if(!active)return; active.classList.add('closing');
+  const resolve=active._resolve; setTimeout(()=>{active.remove(); resolve?.(result)},150);
+}
+function uiPrompt({title='写一点什么',label='',value='',placeholder='',type='text',multiline=false,confirmText='保存',cancelText='取消'}={}){
+  return new Promise(resolve=>{
+    const wrap=document.createElement('div'); wrap.className='ew-modal-wrap'; wrap._resolve=resolve;
+    const control=multiline
+      ? `<textarea class="ew-dialog-input" id="ewDialogInput" placeholder="${esc(placeholder)}">${esc(value)}</textarea>`
+      : `<input class="ew-dialog-input" id="ewDialogInput" type="${esc(type)}" value="${esc(value)}" placeholder="${esc(placeholder)}">`;
+    wrap.innerHTML=`<div class="ew-modal-scrim" data-dialog-cancel></div><section class="ew-dialog" role="dialog" aria-modal="true"><div class="ew-dialog-ornament">Elsewhere</div><h3>${esc(title)}</h3>${label?`<p class="ew-dialog-label">${esc(label)}</p>`:''}${control}<div class="ew-dialog-actions"><button class="ew-dialog-secondary" data-dialog-cancel>${esc(cancelText)}</button><button class="ew-dialog-primary" data-dialog-ok>${esc(confirmText)}</button></div></section>`;
+    uiLayer().appendChild(wrap); requestAnimationFrame(()=>wrap.classList.add('show'));
+    const input=wrap.querySelector('#ewDialogInput'); setTimeout(()=>{input?.focus(); if(input?.select && !multiline) input.select()},60);
+    const finish=v=>uiClose(v);
+    wrap.querySelectorAll('[data-dialog-cancel]').forEach(x=>x.onclick=()=>finish(null));
+    wrap.querySelector('[data-dialog-ok]').onclick=()=>finish((input?.value??'').trim());
+    input?.addEventListener('keydown',e=>{if(e.key==='Escape')finish(null);if(e.key==='Enter'&&!multiline&&!e.shiftKey){e.preventDefault();finish((input.value||'').trim())}});
+  });
+}
+
+function uiForm({title='Edit',subtitle='',fields=[],confirmText='保存',cancelText='取消'}={}){
+  return new Promise(resolve=>{
+    const wrap=document.createElement('div');wrap.className='ew-modal-wrap ew-form-wrap';wrap._resolve=resolve;
+    const controls=fields.map(f=>{
+      const name=esc(f.name),label=esc(f.label||f.name),value=esc(f.value??'');
+      let control='';
+      if(f.type==='select'){
+        control=`<select class="ew-dialog-input" data-form-field="${name}">${(f.options||[]).map(o=>{const pair=Array.isArray(o)?o:[o,o];return `<option value="${esc(pair[0])}" ${String(pair[0])===String(f.value)?'selected':''}>${esc(pair[1])}</option>`}).join('')}</select>`;
+      }else if(f.multiline){
+        control=`<textarea class="ew-dialog-input" data-form-field="${name}" placeholder="${esc(f.placeholder||'')}">${value}</textarea>`;
+      }else{
+        control=`<input class="ew-dialog-input" data-form-field="${name}" type="${esc(f.type||'text')}" value="${value}" placeholder="${esc(f.placeholder||'')}">`;
+      }
+      return `<label class="ew-form-field"><span>${label}</span>${control}</label>`;
+    }).join('');
+    wrap.innerHTML=`<div class="ew-modal-scrim" data-form-cancel></div><section class="ew-dialog ew-sheet ew-form-dialog" role="dialog" aria-modal="true"><div class="sheet-handle"></div><div class="sheet-title"><div><small>ELSEWHERE EDITOR</small><h3>${esc(title)}</h3>${subtitle?`<p>${esc(subtitle)}</p>`:''}</div><button data-form-cancel>×</button></div><div class="ew-form-grid">${controls}</div><div class="ew-dialog-actions"><button class="ew-dialog-secondary" data-form-cancel>${esc(cancelText)}</button><button class="ew-dialog-primary" data-form-ok>${esc(confirmText)}</button></div></section>`;
+    uiLayer().appendChild(wrap);requestAnimationFrame(()=>wrap.classList.add('show'));
+    const finish=v=>{wrap.classList.remove('show');setTimeout(()=>{wrap.remove();resolve(v)},140)};
+    wrap.querySelectorAll('[data-form-cancel]').forEach(x=>x.onclick=()=>finish(null));
+    wrap.querySelector('[data-form-ok]').onclick=()=>{const out={};$$('[data-form-field]',wrap).forEach(el=>out[el.dataset.formField]=el.value);finish(out)};
+  });
+}
+function uiConfirm({title='确认一下',message='',confirmText='确定',cancelText='取消',danger=false}={}){
+  return new Promise(resolve=>{
+    const wrap=document.createElement('div'); wrap.className='ew-modal-wrap'; wrap._resolve=resolve;
+    wrap.innerHTML=`<div class="ew-modal-scrim" data-dialog-cancel></div><section class="ew-dialog ew-confirm" role="dialog" aria-modal="true"><div class="ew-dialog-ornament">Elsewhere</div><h3>${esc(title)}</h3><p class="ew-confirm-copy">${esc(message)}</p><div class="ew-dialog-actions"><button class="ew-dialog-secondary" data-dialog-cancel>${esc(cancelText)}</button><button class="ew-dialog-primary ${danger?'danger':''}" data-dialog-ok>${esc(confirmText)}</button></div></section>`;
+    uiLayer().appendChild(wrap); requestAnimationFrame(()=>wrap.classList.add('show'));
+    const finish=v=>uiClose(v); wrap.querySelectorAll('[data-dialog-cancel]').forEach(x=>x.onclick=()=>finish(false)); wrap.querySelector('[data-dialog-ok]').onclick=()=>finish(true);
+  });
+}
+function uiAlert({title='Elsewhere',message='',button='知道了'}={}){
+  return new Promise(resolve=>{
+    const wrap=document.createElement('div'); wrap.className='ew-modal-wrap'; wrap._resolve=resolve;
+    wrap.innerHTML=`<div class="ew-modal-scrim" data-dialog-ok></div><section class="ew-dialog ew-alert" role="dialog" aria-modal="true"><div class="ew-dialog-ornament">Elsewhere</div><h3>${esc(title)}</h3><p class="ew-confirm-copy">${esc(message)}</p><div class="ew-dialog-actions single"><button class="ew-dialog-primary" data-dialog-ok>${esc(button)}</button></div></section>`;
+    uiLayer().appendChild(wrap); requestAnimationFrame(()=>wrap.classList.add('show')); wrap.querySelectorAll('[data-dialog-ok]').forEach(x=>x.onclick=()=>uiClose(true));
+  });
+}
+function uiToast(message,{tone='paper',duration=2200}={}){
+  const layer=uiLayer(); const t=document.createElement('div'); t.className=`ew-toast ${tone}`; t.innerHTML=`<b>${esc(message)}</b>`; layer.appendChild(t); requestAnimationFrame(()=>t.classList.add('show')); setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),180)},duration);
+}
+async function ask(label,def='',opts={}){ return uiPrompt({title:label,value:def,...opts}); }
+function open(k,arg=null){
+  if(k==='home'){homeEdit=false; const v=$('.view'); if(v){v.classList.add('going-home');setTimeout(()=>{current='home';currentArg=null;render()},140);return;} current='home';currentArg=null;render();return;}
+  if(current==='home'){const ph=$('.phone');ph?.classList.add('app-launching');setTimeout(()=>{current=k;currentArg=arg;render();requestAnimationFrame(()=>$('.app-view')?.classList.add('app-arrived'))},110);return;}
+  current=k; currentArg=arg; render(); requestAnimationFrame(()=>{const phone=$('.phone'); if(phone) phone.scrollTop=0; const m=$('.messages'); if(m)m.scrollTop=m.scrollHeight});
+}
+function learnThomasStyle(text){
+  const p=S.settings.thomasProfile, learned=S.settings.thomasLearned;
+  if(!p.learn)return '';
+  const t=text.toLowerCase(); let note='';
+  const shift=(k,n)=>p[k]=Math.max(0,Math.min(100,Number(p[k]||0)+n));
+  if(/(别|不要).*(客服|官方|正式)|太(客服|官方|正式)/.test(text)){shift('formality',-12);note='少一点正式和客服腔'}
+  if(/更.*(随意|自然|口语)/.test(text)){shift('formality',-8);note='说话更自然随意'}
+  if(/更.*(温柔|体贴)/.test(text)){shift('warmth',10);note='更温柔体贴'}
+  if(/(别|不要).*(温柔|哄)/.test(text)){shift('warmth',-10);note='减少过度温柔'}
+  if(/(毒舌|欠一点|损一点|刻薄一点)/.test(text)){shift('sass',10);note='可以更毒舌一点'}
+  if(/(别|不要).*(毒舌|阴阳|讽刺)/.test(text)){shift('sass',-12);note='减少毒舌和讽刺'}
+  if(/(少说|简短|话少|少一点废话)/.test(text)){shift('verbosity',-12);note='回答更短，少废话'}
+  if(/(多说|详细一点|话多)/.test(text)){shift('verbosity',10);note='可以多说一点'}
+  if(/(主动一点|多提醒|多来找我)/.test(text)){shift('initiative',10);note='更主动地提醒和关心'}
+  if(/(别催|少提醒|不要主动)/.test(text)){shift('initiative',-12);note='降低主动提醒频率'}
+  const m=text.match(/(?:以后|你可以)?叫我[「“"']?([^，。！？,.!?'”」]{1,16})/);
+  if(m){p.address=m[1].trim();note=`称呼用户为 ${p.address}`}
+  if(note && !learned.includes(note)){learned.unshift(note);if(learned.length>20)learned.length=20}
+  return note;
+}
+function thomasStylePrompt(){
+  const p=S.settings.thomasProfile, learned=S.settings.thomasLearned;
+  return `基础人格：${p.base}；称呼用户：${p.address||'自然称呼'}。语气参数（0-100）：温柔${p.warmth}，毒舌${p.sass}，主动${p.initiative}，正式${p.formality}，话多${p.verbosity}。已学习偏好：${learned.join('；')||'暂无'}。不要机械复述参数，要自然体现。${p.verbosity<35?'尽量用短句。':''}${p.formality<35?'避免客服腔、模板式安慰和过度礼貌。':''}${p.sass>60?'可以轻微挖苦或吐槽，但不要恶意。':''}`;
+}
+function localThomas(text){
+  const p=S.settings.thomasProfile;
+  if(S.settings.thomasLearned[0] && /(客服|官方|温柔|毒舌|废话|简短|主动|提醒|叫我)/.test(text)) return p.sass>55?'行，记住了。别到时候又嫌我太会说。':'好，我会慢慢照这个方式和你说话。';
+  const due=S.todos.filter(x=>!x.done);
+  if(/今天|待办|没做/.test(text)) return due.length?`你今天还有 ${due.length} 项没完成：${due.slice(0,5).map(x=>x.text).join('、')}。我建议先挑最短的一项开始，不用一次把整天都解决。`:'今天的待办已经全部完成了。剩下的时间可以留给自己。';
+  if(/专注|番茄|学习/.test(text)){ S.study.seconds=25*60; S.study.running=false; return '我已经把书房的番茄钟调到 25 分钟。先只做一件事，结束后再决定要不要继续。'; }
+  if(/记录|心情|日记/.test(text)){ return '可以。你直接把现在脑子里的话说给我，我会把它当成一段可以被整理进日记的文字。'; }
+  if(/喝水/.test(text)){ return `你今天记录了 ${S.water} ml。离 2000 ml 还差 ${Math.max(0,2000-S.water)} ml。`; }
+  if(/花|钱|记账|余额/.test(text)){const i=S.finance.filter(x=>x.type==='income').reduce((a,x)=>a+Number(x.amount),0),e=S.finance.filter(x=>x.type==='expense').reduce((a,x)=>a+Number(x.amount),0);return `目前记录的结余是 RM ${(i-e).toFixed(2)}，收入 RM ${i.toFixed(2)}，支出 RM ${e.toFixed(2)}。`;}
+  const opts=['我在。你可以不用把事情说得很完整。','听起来你今天脑子里装了很多东西。先把最吵的那一件告诉我。','这件事我记住了。你想让我陪你梳理，还是只想让我听着？','可以。我们把它变小一点，一件一件来。']; return opts[Math.floor(Math.random()*opts.length)];
+}
+async function sendThomas(text){
+  if(!text)return; const learnedNow=learnThomasStyle(text); S.thomas.push({id:uid(),role:'user',text,ts:Date.now()}); save(); render();
+  let reply='';
+  try{
+    if(S.settings.useAI){
+      const context=`用户待办：${S.todos.filter(x=>!x.done).map(x=>x.text).join('、')}；今日饮水 ${S.water}ml；今日专注 ${S.study.totalMinutes} 分钟。你叫 Thomas，是 Elsewhere 小手机里的私人生活助手。${thomasStylePrompt()} 你可以基于这些信息给生活建议，但不要假装已经做了未做的动作。若用户正在给你的语气反馈，简短自然地承认并立刻按新语气回应，不要解释参数。`;
+      const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({character:{name:'Thomas',personality:context,relationship:'private assistant',style:'natural concise Chinese messages'},world:{summary:'Elsewhere scrapbook little phone'},messages:S.thomas.slice(-16).map(x=>({role:x.role,content:x.text}))})});
+      if(r.ok){const d=await r.json(); reply=d.content||'';}
+    }
+  }catch{}
+  if(!reply) reply=localThomas(text);
+  S.thomas.push({id:uid(),role:'assistant',text:reply,ts:Date.now()}); save(); render(); setTimeout(()=>{const m=$('.messages');if(m)m.scrollTop=m.scrollHeight},10);
+}
+async function sendChat(id,text){
+  if(!text)return; const c=ch(id); S.chats[id] ||= []; S.chats[id].push({id:uid(),role:'user',text,ts:Date.now()}); rememberFromChat(id,text); save(); render();
+  let reply='';
+  try{const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({character:{name:c.name,personality:c.personality,relationship:c.relation,style:c.style},world:{summary:'A private everyday world inside Elsewhere.'},messages:S.chats[id].slice(-20).map(x=>({role:x.role,content:x.text}))})}); if(r.ok) reply=(await r.json()).content||'';}catch{}
+  if(!reply){ const generic=['知道了。','你终于想起回我了。','嗯，然后呢？','好。别又忙到忘记吃东西。']; reply=generic[Math.floor(Math.random()*generic.length)]; }
+  S.chats[id].push({id:uid(),role:'assistant',text:reply,ts:Date.now()}); S.notifications.unshift({id:uid(),title:c.name,text:reply,ts:Date.now(),read:false}); save(); render();
+}
+function rememberFromChat(id,text){
+  S.memories[id] ||= []; S.relationships[id] ||= {score:50,label:'熟悉',secrets:[]};
+  if(text.length>10 && /(喜欢|讨厌|记得|以后|我会|我不|生日|明天|下周|重要)/.test(text)){S.memories[id].unshift({id:uid(),text:text.slice(0,90),importance:/重要|生日|讨厌|喜欢/.test(text)?3:2,ts:Date.now()});S.memories[id]=S.memories[id].slice(0,30)}
+  S.relationships[id].score=Math.min(100,(S.relationships[id].score||50)+1);
+  const sc=S.relationships[id].score;S.relationships[id].label=sc>82?'很亲密':sc>65?'亲近':sc>45?'熟悉':'疏远';
+}
+function localWorldPulse(){
+  if(S.characters.length<1)return; const c=S.characters[Math.floor(Math.random()*S.characters.length)];
+  S.chats[c.id] ||= []; const texts=['刚刚路过一家店，第一反应居然是你会喜欢。','你今天安静得有点过分。','突然想起你之前说的那件事。','别忘了吃东西。这个不是建议。','我本来不想发消息的。算了。']; const text=texts[Math.floor(Math.random()*texts.length)];
+  S.chats[c.id].push({id:uid(),role:'assistant',text,ts:Date.now(),proactive:true});S.notifications.unshift({id:uid(),title:c.name,text,ts:Date.now(),read:false});
+  if(Math.random()<.65){const post=['今天的风有点像旧照片。','有些普通瞬间，反而最难忘。','突然很想把今天保存下来。','雨停以后，街上闻起来很干净。'][Math.floor(Math.random()*4)];const comments=[];const other=S.characters.find(x=>x.id!==c.id);if(other&&Math.random()<.7)comments.push({who:other.id,text:['你又开始了。','这句倒是挺像你。','我知道你在说谁。'][Math.floor(Math.random()*3)]});S.moments.unshift({id:uid(),who:c.id,text:post,ts:Date.now(),likes:Math.floor(Math.random()*12),comments})}
+  if(S.characters.length>1&&Math.random()<.8){const b=S.characters.find(x=>x.id!==c.id);S.privateChats.unshift({id:uid(),a:c.id,b:b.id,ts:Date.now(),messages:[{who:c.id,text:'她今天是不是有点累？'},{who:b.id,text:'你自己去问。别绕我。'}]})}
+  const r=S.relationships[c.id]||(S.relationships[c.id]={score:50,label:'熟悉',secrets:[]});if(Math.random()<.35&&r.secrets.length<8)r.secrets.push(['其实很在意你有没有回消息。','把你随口说过的话记下来了。','有一件事想告诉你，但还没找到时机。'][Math.floor(Math.random()*3)]);
+  S.worldMeta.lastPulse=Date.now(); save();
+}
+function runElapsedWorld(){const elapsed=Date.now()-(S.worldMeta?.lastPulse||Date.now());if(S.worldMeta?.auto&&elapsed>Math.max(4,S.worldMeta.pulseMinutes||8)*60000)localWorldPulse()}
+function startCall(id){const c=ch(id);if(!c)return;const started=Date.now();const overlay=document.createElement('div');overlay.className='call-overlay';overlay.innerHTML=`<div class="call-card">${avatar(c)}<small>ELSEWHERE CALL</small><h2>${esc(c.name)}</h2><p id="callState">正在连接…</p><div class="call-rings">connecting</div><button id="hangup">挂断</button></div>`;document.body.appendChild(overlay);setTimeout(()=>{const el=$('#callState');if(el)el.textContent='已接通 · 00:01'},900);$('#hangup').onclick=()=>{S.callLogs.unshift({id:uid(),character:id,ts:started,duration:Math.max(1,Math.floor((Date.now()-started)/1000))});save();overlay.remove()}}
+function exportCharacterCards(){const cards=S.characters.map(c=>({...c,memory:S.memories[c.id]||[],relationship:S.relationships[c.id]||null}));const blob=new Blob([JSON.stringify({format:'elsewhere-character-cards',version:1,cards},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='elsewhere-character-cards.json';a.click();URL.revokeObjectURL(a.href)}
+function studyTick(){clearInterval(timer); if(!S.study.running)return; S.study.lastTick=Date.now(); timer=setInterval(()=>{ if(!S.study.running){clearInterval(timer);return;} if(S.study.seconds>0) S.study.seconds--; else {S.study.running=false; S.study.totalMinutes+=25; S.notifications.unshift({id:uid(),title:'书房',text:'这一轮专注结束了。休息一下吧。',ts:Date.now(),read:false}); save(); clearInterval(timer);} const el=$('#timerText'); if(el){const m=String(Math.floor(S.study.seconds/60)).padStart(2,'0'),s=String(S.study.seconds%60).padStart(2,'0');el.textContent=`${m}:${s}`;} },1000)}
+
+
+async function socialWrite(path,body){try{const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw 0;return await r.json()}catch{uiToast('社交服务暂时离线');return null}}
+async function pushProfile(){await socialWrite('/api/social/profile',{id:S.social.userId,...S.owner});}
+async function editProfile(){
+  const v=await uiForm({title:'Edit Profile',subtitle:'名字、用户名、简介、状态和标签一次改完。',fields:[
+    {name:'name',label:'显示名字',value:S.owner.name||'',placeholder:'名字'},
+    {name:'handle',label:'用户名',value:S.owner.handle||'',placeholder:'例如 ann'},
+    {name:'bio',label:'个人简介',value:S.owner.bio||'',multiline:true,placeholder:'写一点关于你'},
+    {name:'status',label:'现在的状态',value:S.owner.status||'',placeholder:'一句很轻的近况'},
+    {name:'tags',label:'标签',value:(S.owner.tags||[]).join(', '),placeholder:'study, music, scrapbook'}
+  ]}); if(!v)return;
+  Object.assign(S.owner,{name:v.name||'Elsewhere user',handle:(v.handle||'user').replace(/\s+/g,'').slice(0,24),bio:v.bio||'',status:v.status||'',tags:(v.tags||'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,8)});
+  save();await pushProfile();render();uiToast('资料已更新');
+}
+function pickProfileImage(kind){const input=document.createElement('input');input.type='file';input.accept='image/*';input.onchange=()=>{const f=input.files?.[0];if(!f)return;const r=new FileReader();r.onload=async()=>{S.owner[kind]=r.result;save();await pushProfile();render();uiToast(kind==='avatar'?'头像已更新':'封面已更新')};r.readAsDataURL(f)};input.click()}
+function editAppAppearance(k){
+  const a=apps.find(i=>i[0]===k);if(!a)return;const cur=S.custom.aliases[k]||{};const hidden=S.custom.hiddenApps.includes(k);
+  const wrap=document.createElement('div');wrap.className='ew-modal-wrap app-edit-wrap';wrap.innerHTML=`<div class="ew-modal-scrim" data-close-app-editor></div><section class="ew-dialog app-editor"><div class="app-editor-head"><small>APP APPEARANCE</small><h3>${esc(cur.label||a[2])}</h3><p>默认使用小星星。你想要时，可以上传自己的图片替换。</p></div><label class="app-editor-field">名字<input id="appEditName" value="${esc(cur.label||a[2])}"></label><div class="app-icon-preview">${cur.src?`<img src="${esc(cur.src)}">`:'<span>no icon</span>'}</div><div class="app-editor-actions"><button data-app-upload-icon>上传图标</button>${cur.src?'<button data-app-remove-icon>移除图标</button>':''}<button data-app-toggle-visibility>${hidden?'显示 App':'隐藏 App'}</button></div><div class="ew-dialog-actions"><button class="ew-dialog-secondary" data-close-app-editor>取消</button><button class="ew-dialog-primary" data-save-app-editor>保存</button></div></section>`;uiLayer().appendChild(wrap);requestAnimationFrame(()=>wrap.classList.add('show'));
+  const close=()=>wrap.remove();wrap.querySelectorAll('[data-close-app-editor]').forEach(b=>b.onclick=close);
+  wrap.querySelector('[data-app-upload-icon]').onclick=()=>{const input=document.createElement('input');input.type='file';input.accept='image/*';input.onchange=()=>{const f=input.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{cur.src=r.result;const pv=wrap.querySelector('.app-icon-preview');pv.innerHTML=`<img src="${esc(cur.src)}">`};r.readAsDataURL(f)};input.click()};
+  wrap.querySelector('[data-app-remove-icon]')?.addEventListener('click',()=>{delete cur.src;wrap.querySelector('.app-icon-preview').innerHTML='<span>no icon</span>'});
+  wrap.querySelector('[data-app-toggle-visibility]').onclick=()=>{if(S.custom.hiddenApps.includes(k))S.custom.hiddenApps=S.custom.hiddenApps.filter(i=>i!==k);else S.custom.hiddenApps.push(k);wrap.querySelector('[data-app-toggle-visibility]').textContent=S.custom.hiddenApps.includes(k)?'显示 App':'隐藏 App'};
+  wrap.querySelector('[data-save-app-editor]').onclick=()=>{cur.label=wrap.querySelector('#appEditName').value.trim()||a[2];S.custom.aliases[k]=cur;save();close();render();uiToast('App 外观已保存')};
+}
+let homeNavDelegated=false;
+function ensureHomeNavigation(){
+  if(homeNavDelegated)return;
+  homeNavDelegated=true;
+  document.addEventListener('click',e=>{
+    const homeBtn=e.target.closest?.('[data-home]');
+    if(homeBtn){e.preventDefault();e.stopPropagation();open('home');return;}
+  },true);
+}
+
+
+function openFolder(id){
+  const f=folderById(id); if(!f)return;
+  const wrap=document.createElement('div');wrap.className='ew-modal-wrap folder-wrap';
+  const contents=(f.apps||[]).map(k=>{const a=apps.find(x=>x[0]===k);return a?`<div class="folder-item">${icon(...a)}${homeEdit?`<button class="folder-remove" data-folder-remove="${k}">移出</button>`:''}</div>`:''}).join('');
+  wrap.innerHTML=`<div class="ew-modal-scrim" data-folder-close></div><section class="ew-dialog folder-dialog"><header><div><small>FOLDER</small><h3>${esc(f.name)}</h3></div>${homeEdit?'<button data-folder-rename>改名</button>':''}</header><div class="folder-grid">${contents||'<p class="quiet-copy">把 App 拖到这里。</p>'}</div><div class="ew-dialog-actions"><button class="ew-dialog-primary" data-folder-close>完成</button></div></section>`;
+  uiLayer().appendChild(wrap);requestAnimationFrame(()=>wrap.classList.add('show'));
+  wrap.querySelectorAll('[data-folder-close]').forEach(x=>x.onclick=()=>{wrap.classList.remove('show');setTimeout(()=>wrap.remove(),150)});
+  wrap.querySelectorAll('[data-open]').forEach(x=>x.onclick=()=>{wrap.remove();open(x.dataset.open)});
+  wrap.querySelectorAll('[data-folder-remove]').forEach(x=>x.onclick=()=>{f.apps=f.apps.filter(k=>k!==x.dataset.folderRemove);S.custom.homeLayout.push(x.dataset.folderRemove);save();wrap.remove();render()});
+  wrap.querySelector('[data-folder-rename]')?.addEventListener('click',async()=>{const v=await uiForm({title:'Edit Folder',fields:[{name:'name',label:'文件夹名称',value:f.name}]});if(v?.name){f.name=v.name;save();wrap.remove();render()}});
+}
+async function createHomeFolder(){
+  const v=await uiForm({title:'New Folder',subtitle:'在同一张卡里完成。',fields:[{name:'name',label:'文件夹名称',value:'My Folder',placeholder:'文件夹名称'}]}); if(!v?.name)return;
+  const id='f-'+uid(); S.custom.folders.push({id,name:v.name,apps:[]}); S.custom.homeLayout.push('folder:'+id); save(); render(); uiToast('文件夹已建立，把 App 拖进去就好');
+}
+function moveLayoutEntry(key,targetKey){
+  const a=S.custom.homeLayout; const i=a.indexOf(key),j=a.indexOf(targetKey); if(i<0||j<0||i===j)return; a.splice(i,1); a.splice(j,0,key); save();
+}
+function moveAppToPage(key,page){
+  const a=S.custom.homeLayout; const i=a.indexOf(key); if(i<0)return; a.splice(i,1); const appPage=Math.max(1,page); const insert=Math.min(a.length,(appPage-1)*12+12); a.splice(insert,0,key); save();
+}
+function addAppToFolder(key,fid){
+  const f=folderById(fid); if(!f||f.apps.includes(key))return; S.custom.homeLayout=S.custom.homeLayout.filter(x=>x!==key); f.apps.push(key); save();
+}
+function phoneOSBind(){
+  const phone=$('.phone'); if(!phone)return;
+  $$('[data-folder-open]').forEach(x=>x.onclick=e=>{e.stopPropagation();openFolder(x.dataset.folderOpen)});
+  $$('[data-edit-done]').forEach(x=>x.onclick=()=>{homeEdit=false;render()});
+  $('[data-folder-new]')?.addEventListener('click',createHomeFolder);
+  $$('[data-widget-library-page]').forEach(x=>x.onclick=()=>widgetLibrarySheet(Number(x.dataset.widgetLibraryPage)||0));
+  $('[data-page-wallpaper]')?.addEventListener('click',()=>{const input=document.createElement('input');input.type='file';input.accept='image/*';input.onchange=()=>{const f=input.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{S.custom.pageWallpapers[homePage]=r.result;save();render()};r.readAsDataURL(f)};input.click()});
+  $('[data-shade-close]')?.addEventListener('click',()=>{shadeOpen=false;$('#notificationShade')?.classList.remove('open')});
+  $('[data-notif-read]')?.addEventListener('click',()=>{S.notifications.forEach(n=>n.read=true);save();render()});
+  $('[data-notif-clear]')?.addEventListener('click',()=>{S.notifications=[];save();render()});
+  const lockPages=$('#lockPages'); if(lockPages){lockPages.addEventListener('scroll',()=>{const i=Math.round(lockPages.scrollLeft/(lockPages.clientWidth||1));$$('.lock-dots i').forEach((d,j)=>d.classList.toggle('active',i===j))},{passive:true})}
+  let gesture=null;
+  phone.addEventListener('pointerdown',e=>{const r=phone.getBoundingClientRect();gesture={x:e.clientX,y:e.clientY,top:e.clientY-r.top<78,bottom:r.bottom-e.clientY<72,t:Date.now()};},{passive:true});
+  phone.addEventListener('pointerup',e=>{if(!gesture)return;const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;if(gesture.top&&dy>64&&Math.abs(dy)>Math.abs(dx)){shadeOpen=true;$('#notificationShade')?.classList.add('open')}else if(gesture.bottom&&dy<-68&&Math.abs(dy)>Math.abs(dx)&&current!=='home'){open('home')}else if(S.locked&&dy<-72&&Math.abs(dy)>Math.abs(dx)){S.locked=false;persistRender()}gesture=null;},{passive:true});
+  $$('.phone-app-grid [data-app-key]').forEach(el=>{
+    let hold=0, ghost=null, sx=0, sy=0, moved=false;
+    const key=el.dataset.appKey;
+    el.onpointerdown=e=>{
+      sx=e.clientX; sy=e.clientY; moved=false;
+      if(!homeEdit){
+        hold=setTimeout(()=>{homeEdit=true;navigator.vibrate?.(15);render();uiToast('编辑模式：现在可以拖动 App')},430);
+        return;
+      }
+      dragState={key,pointerId:e.pointerId};
+      el.setPointerCapture?.(e.pointerId);
+      e.preventDefault();
+    };
+    el.onpointermove=e=>{
+      if(!homeEdit||!dragState||dragState.key!==key)return;
+      const dx=e.clientX-sx,dy=e.clientY-sy; if(Math.abs(dx)+Math.abs(dy)<5&&!ghost)return;
+      moved=true;
+      if(!ghost){ghost=el.cloneNode(true);ghost.classList.add('drag-ghost');document.body.appendChild(ghost)}
+      ghost.style.left=e.clientX+'px'; ghost.style.top=e.clientY+'px';
+      const hp=$('#homePages'); if(hp){const r=hp.getBoundingClientRect(); if(e.clientX>r.right-34&&homePage<$$('.home-page').length-1){homePage++;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}else if(e.clientX<r.left+34&&homePage>1){homePage--;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}}
+      e.preventDefault();
+    };
+    const finish=e=>{
+      clearTimeout(hold);
+      if(!homeEdit||!dragState||dragState.key!==key){dragState=null;return}
+      try{if(el.hasPointerCapture?.(e.pointerId))el.releasePointerCapture(e.pointerId)}catch{}
+      ghost?.remove(); ghost=null;
+      if(moved){
+        const hit=document.elementFromPoint(e.clientX,e.clientY); const folder=hit?.closest?.('[data-folder-key]'); const target=hit?.closest?.('[data-app-key]'); const page=hit?.closest?.('[data-app-page]');
+        if(folder)addAppToFolder(key,folder.dataset.folderKey); else if(target&&target.dataset.appKey!==key)moveLayoutEntry(key,target.dataset.appKey); else if(page)moveAppToPage(key,Number(page.dataset.appPage));
+        dragState=null; render();
+      } else dragState=null;
+    };
+    el.onpointerup=finish; el.onpointercancel=finish;
+    el.onclick=e=>{clearTimeout(hold);if(homeEdit){e.preventDefault();e.stopPropagation();return}}
+  });
+
+  $$('.home-widget[data-home-widget-id]').forEach(el=>{
+    let hold=0, ghost=null, sx=0, sy=0, moved=false; const id=el.dataset.homeWidgetId;
+    el.onpointerdown=e=>{
+      sx=e.clientX;sy=e.clientY;moved=false;
+      if(!homeEdit){hold=setTimeout(()=>{homeEdit=true;navigator.vibrate?.(12);render();uiToast('编辑模式')},420);return}
+      dragState={widgetId:id,pointerId:e.pointerId};el.setPointerCapture?.(e.pointerId);e.preventDefault();
+    };
+    el.onpointermove=e=>{
+      if(!homeEdit||!dragState||dragState.widgetId!==id)return;
+      const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)+Math.abs(dy)<5&&!ghost)return;moved=true;
+      if(!ghost){ghost=el.cloneNode(true);ghost.classList.add('drag-ghost','widget-drag-ghost');document.body.appendChild(ghost)}
+      ghost.style.left=e.clientX+'px';ghost.style.top=e.clientY+'px';
+      const hp=$('#homePages');if(hp){const r=hp.getBoundingClientRect();if(e.clientX>r.right-34&&homePage<$$('.home-page').length-1){homePage++;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}else if(e.clientX<r.left+34&&homePage>0){homePage--;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}}
+      e.preventDefault();
+    };
+    const finish=e=>{clearTimeout(hold);if(!homeEdit||!dragState||dragState.widgetId!==id){dragState=null;return}try{if(el.hasPointerCapture?.(e.pointerId))el.releasePointerCapture(e.pointerId)}catch{}ghost?.remove();ghost=null;
+      if(moved){const hit=document.elementFromPoint(e.clientX,e.clientY);const page=hit?.closest?.('[data-app-page]');const w=(S.custom.homeWidgets||[]).find(x=>x.id===id);if(w&&page){w.page=Number(page.dataset.appPage)||0;save()}dragState=null;render()}else{dragState=null;editWidgetSheet(id)}
+    };
+    el.onpointerup=finish;el.onpointercancel=finish;
+    el.onclick=e=>{clearTimeout(hold);if(homeEdit){e.preventDefault();e.stopPropagation()}}
+  });
+
+}
+function bind(){
+  ensureHomeNavigation();
+  phoneOSBind();
+  $$('[data-unlock]').forEach(x=>x.onclick=()=>{S.locked=false;persistRender()});
+  $$('[data-home]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();open('home')});
+  $$('[data-open]').forEach(x=>x.onclick=e=>{e.stopPropagation();if(homeEdit&&x.closest('.phone-app-grid'))return;open(x.dataset.open)});
+  const homePages=$('#homePages'); if(homePages){ requestAnimationFrame(()=>{homePages.scrollLeft=homePage*homePages.clientWidth}); let raf=0; homePages.addEventListener('scroll',()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const w=homePages.clientWidth||1;homePage=Math.round(homePages.scrollLeft/w);$$('[data-home-dot]').forEach((d,i)=>d.classList.toggle('active',i===homePage));});},{passive:true}); $$('[data-home-dot]').forEach(d=>d.onclick=()=>{homePage=Number(d.dataset.homeDot)||0;homePages.scrollTo({left:homePage*homePages.clientWidth,behavior:'smooth'});}); }
+  $$('[data-chat]').forEach(x=>x.onclick=()=>open('messages',x.dataset.chat));
+  $$('[data-chat-send]').forEach(x=>x.onclick=()=>{const inp=$('#chatInput');sendChat(x.dataset.chatSend,inp.value.trim())});
+  const ci=$('#chatInput'); if(ci)ci.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('[data-chat-send]')?.click()}};
+  $$('[data-thomas-quick]').forEach(x=>x.onclick=()=>sendThomas(x.dataset.thomasQuick));
+  $('[data-thomas-send]')?.addEventListener('click',()=>{const i=$('#thomasInput');sendThomas(i.value.trim())});
+  $('#thomasInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('[data-thomas-send]')?.click()}});
+  $('[data-thomas-clear]')?.addEventListener('click',async()=>{if(await uiConfirm({title:'清空聊天',message:'清空和 Thomas 的聊天记录？',confirmText:'清空',danger:true})){S.thomas=[];persistRender();uiToast('Thomas 的聊天记录已清空')}});
+  $('[data-thomas-style]')?.addEventListener('click',()=>open('settings'));
+  $$('[data-thomas-range]').forEach(x=>x.oninput=()=>{S.settings.thomasProfile[x.dataset.thomasRange]=Number(x.value);save();const b=x.closest('label')?.querySelector('b');if(b)b.textContent=x.value});
+  $('[data-thomas-address]')?.addEventListener('change',e=>{S.settings.thomasProfile.address=e.target.value.trim()||'Ann';save()});
+  $('[data-thomas-base]')?.addEventListener('change',e=>{S.settings.thomasProfile.base=e.target.value.trim()||defaultState.settings.thomasProfile.base;save()});
+  $('[data-thomas-learn]')?.addEventListener('change',e=>{S.settings.thomasProfile.learn=e.target.checked;save()});
+  $('[data-thomas-forget]')?.addEventListener('click',async()=>{if(await uiConfirm({title:'清除学习偏好',message:'Thomas 手动滑杆会保留，只清除他后来学会的语气。',confirmText:'清除'})){S.settings.thomasLearned=[];persistRender();uiToast('已清除 Thomas 的学习偏好')}});
+  $$('[data-todo]').forEach(x=>x.onchange=()=>{const t=S.todos.find(t=>t.id===x.dataset.todo);t.done=x.checked;persistRender()});
+  $$('[data-todo-tab]').forEach(x=>x.onclick=()=>{todoTab=x.dataset.todoTab;render()});
+  $('[data-add-todo]')?.addEventListener('click',async()=>{const text=await ask('新的待办','',{placeholder:'例如：完成作业'});if(text){S.todos.unshift({id:uid(),text,done:false});persistRender();uiToast('已加入待办')}});
+  $$('[data-del-todo]').forEach(x=>x.onclick=e=>{e.preventDefault();S.todos=S.todos.filter(t=>t.id!==x.dataset.delTodo);persistRender()});
+  $$('[data-habit]').forEach(x=>x.onclick=()=>{const h=S.habits.find(h=>h.id===x.dataset.habit);h.done=!h.done;persistRender()});
+  $('[data-add-habit]')?.addEventListener('click',async()=>{const name=await ask('新的习惯','',{placeholder:'例如：阅读 30 分钟'});if(name){S.habits.push({id:uid(),name,detail:'today',streak:0,done:false});persistRender();uiToast('习惯已加入')}});
+  $('[data-add-event]')?.addEventListener('click',async()=>{const v=await uiForm({title:'New Event',fields:[{name:'title',label:'事件名称',value:''},{name:'date',label:'日期',type:'date',value:today()},{name:'time',label:'时间',type:'time',value:'12:00'}]});if(!v?.title)return;S.events.push({id:uid(),title:v.title,date:v.date||today(),time:v.time||''});persistRender();uiToast('日程已保存')});
+  $$('[data-del-event]').forEach(x=>x.onclick=()=>{S.events=S.events.filter(e=>e.id!==x.dataset.delEvent);persistRender()});
+  $('[data-study-toggle]')?.addEventListener('click',()=>{S.study.running=!S.study.running;save();render();studyTick()});
+  $$('[data-study-reset]').forEach(x=>x.onclick=()=>{S.study.seconds=Number(x.dataset.studyReset)*60;S.study.running=false;persistRender()});
+  $('[data-add-food]')?.addEventListener('click',async()=>{const v=await uiForm({title:'Log Food',fields:[{name:'meal',label:'餐次',value:'晚餐'},{name:'name',label:'吃了什么',value:''},{name:'kcal',label:'大约热量',type:'number',value:'400'}]});if(!v?.name)return;S.food.push({id:uid(),meal:v.meal||'餐食',name:v.name,kcal:Number(v.kcal)||0});persistRender();uiToast('饮食已记录')});
+  $$('[data-del-food]').forEach(x=>x.onclick=()=>{S.food=S.food.filter(f=>f.id!==x.dataset.delFood);persistRender()});
+  $$('[data-water]').forEach(x=>x.onclick=()=>{S.water=Math.max(0,S.water+Number(x.dataset.water));persistRender()});
+  $('[data-add-workout]')?.addEventListener('click',async()=>{const v=await uiForm({title:'Log Workout',fields:[{name:'name',label:'训练',value:'力量训练'},{name:'minutes',label:'分钟',type:'number',value:'30'},{name:'kcal',label:'大约消耗',type:'number',value:'200'}]});if(!v?.name)return;S.fitness.push({id:uid(),name:v.name,minutes:Number(v.minutes)||0,kcal:Number(v.kcal)||0});persistRender();uiToast('训练已记录')});
+  $$('[data-del-workout]').forEach(x=>x.onclick=()=>{S.fitness=S.fitness.filter(f=>f.id!==x.dataset.delWorkout);persistRender()});
+  $('[data-add-money]')?.addEventListener('click',async()=>{const v=await uiForm({title:'New Transaction',fields:[{name:'type',label:'类型',type:'select',value:'expense',options:[['expense','支出'],['income','收入']]},{name:'name',label:'项目',value:''},{name:'amount',label:'金额（RM）',type:'number',value:'0'}]});if(!v?.name)return;S.finance.unshift({id:uid(),type:v.type==='income'?'income':'expense',name:v.name,amount:Number(v.amount)||0});persistRender();uiToast('账目已记录')});
+  $$('[data-del-money]').forEach(x=>x.onclick=()=>{S.finance=S.finance.filter(f=>f.id!==x.dataset.delMoney);persistRender()});
+  $('[data-add-note]')?.addEventListener('click',async()=>{const v=await uiForm({title:'New Note',fields:[{name:'title',label:'标题',value:'untitled'},{name:'text',label:'内容',multiline:true,value:'',placeholder:'写下想留下的东西…'}]});if(!v?.title)return;S.notes.unshift({id:uid(),title:v.title,text:v.text||''});persistRender();uiToast('笔记已保存')});
+  $$('[data-del-note]').forEach(x=>x.onclick=()=>{S.notes=S.notes.filter(n=>n.id!==x.dataset.delNote);persistRender()});
+  $('[data-add-diary]')?.addEventListener('click',async()=>{const text=await ask('今天想留下什么？','',{multiline:true,placeholder:'普通的一天也值得被收藏。'});if(text){S.diary.push({id:uid(),date:today(),text});persistRender();uiToast('日记已保存')}});
+  $$('[data-del-diary]').forEach(x=>x.onclick=()=>{S.diary=S.diary.filter(n=>n.id!==x.dataset.delDiary);persistRender()});
+  $('[data-new-moment]')?.addEventListener('click',async()=>{const text=await ask('发一条朋友圈','',{multiline:true,placeholder:'这一刻想说什么？',confirmText:'发布'});if(text){S.moments.unshift({id:uid(),who:'owner',text,ts:Date.now(),likes:0});persistRender();uiToast('朋友圈已发布')}});
+  $$('[data-like]').forEach(x=>x.onclick=()=>{const p=S.moments.find(p=>p.id===x.dataset.like);p.likes=(p.likes||0)+1;persistRender()});
+  $('[data-add-char]')?.addEventListener('click',async()=>{const v=await uiForm({title:'New Character',fields:[{name:'name',label:'角色名字',value:''},{name:'relation',label:'关系',value:'friend',placeholder:'friend / partner / roommate…'}]});if(!v?.name)return;const idd=v.name.toLowerCase().replace(/\W/g,'')||uid();S.characters.push({id:idd,name:v.name,initial:v.name[0],relation:v.relation||'friend',status:'online',color:'#9a7580',personality:'自然、有自己的生活。',style:'像真实聊天。'});S.chats[idd]=[];persistRender();uiToast(`${v.name} 已加入 Elsewhere`)});
+  $$('[data-del-char]').forEach(x=>x.onclick=async()=>{const c=ch(x.dataset.delChar);if(await uiConfirm({title:'删除角色',message:`确定要从 Elsewhere 删除 ${c?.name||'这个角色'}？聊天记录也会一起移除。`,confirmText:'删除',danger:true})){S.characters=S.characters.filter(c=>c.id!==x.dataset.delChar);delete S.chats[x.dataset.delChar];persistRender();uiToast('角色已删除')}});
+  $$('[data-theme]').forEach(x=>x.onclick=()=>{S.theme=x.dataset.theme;S.custom.accent='';S.custom.paper='';S.custom.ink='';S.wallpaper='';save();applyTheme();render();uiToast('Theme 已切换')});
+  $('[data-wallpaper]')?.addEventListener('click',()=>$('#photoPicker').click());
+  $('[data-photo-add]')?.addEventListener('click',()=>{const p=$('#photoPicker');p.dataset.mode='photo';p.click()});
+  $('#photoPicker')?.addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{if(e.target.dataset.mode==='photo')S.photos.unshift({id:uid(),data:r.result});else S.wallpaper=r.result;e.target.dataset.mode='';persistRender()};r.readAsDataURL(f)});
+  $$('[data-del-photo]').forEach(x=>x.onclick=()=>{S.photos=S.photos.filter(p=>p.id!==x.dataset.delPhoto);persistRender()});
+  $('[data-export]')?.addEventListener('click',()=>{const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='elsewhere-data.json';a.click();URL.revokeObjectURL(a.href)});
+  $('[data-import]')?.addEventListener('click',()=>{const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=()=>{const f=input.files[0];const r=new FileReader();r.onload=()=>{try{S=JSON.parse(r.result);persistRender()}catch{uiAlert({title:'导入失败',message:'这个文件不是有效的 Elsewhere 数据。'})}};r.readAsText(f)};input.click()});
+  $('[data-reset]')?.addEventListener('click',async()=>{if(await uiConfirm({title:'重置 Elsewhere',message:'这会清空本机保存的角色、聊天和生活数据。这个操作不能撤销。',confirmText:'彻底重置',danger:true})){S=clone(defaultState);localStorage.removeItem(KEY);current='home';persistRender();uiToast('Elsewhere 已重置')}});
+  $('[data-weather-refresh]')?.addEventListener('click',refreshWeather);
+  $$('[data-peek]').forEach(x=>x.onclick=()=>open('phone',x.dataset.peek));
+  $$('[data-call]').forEach(x=>x.onclick=()=>startCall(x.dataset.call));
+  $$('[data-voice-send]').forEach(x=>x.onclick=async()=>{const id=x.dataset.voiceSend;const text=await ask('发送语音','嗯，我晚点再跟你说。',{multiline:true,confirmText:'发送'});if(text){S.chats[id]||=[];S.chats[id].push({id:uid(),role:'user',type:'voice',text,seconds:Math.max(2,Math.ceil(text.length/4)),ts:Date.now()});rememberFromChat(id,text);persistRender()}});
+  $$('[data-play-voice]').forEach(x=>x.onclick=()=>{x.textContent=x.textContent.startsWith('▶')?'Ⅱ  playing…':'▶ voice'});
+  $$('[data-comment]').forEach(x=>x.onclick=async()=>{const p=S.moments.find(p=>p.id===x.dataset.comment);const text=await ask('写评论','',{placeholder:'说点什么…',confirmText:'发布'});if(text){p.comments||=[];p.comments.push({who:'owner',text});persistRender()}});
+  $$('[data-world-pulse]').forEach(x=>x.onclick=()=>{localWorldPulse();render()});
+  $('[data-world-new]')?.addEventListener('click',async()=>{const name=await ask('新建世界','Another World',{placeholder:'世界存档名称'});if(name){const snapshot=JSON.stringify({characters:S.characters,chats:S.chats,moments:S.moments,memories:S.memories,relationships:S.relationships,privateChats:S.privateChats});const id='w-'+uid();S.worlds.push({id,name,createdAt:Date.now(),snapshot});S.activeWorld=id;persistRender();uiToast(`已进入 ${name}`)}});
+  $$('[data-world-switch]').forEach(x=>x.onclick=()=>{const target=S.worlds.find(w=>w.id===x.dataset.worldSwitch);if(!target)return;const currentW=S.worlds.find(w=>w.id===S.activeWorld);if(currentW)currentW.snapshot=JSON.stringify({characters:S.characters,chats:S.chats,moments:S.moments,memories:S.memories,relationships:S.relationships,privateChats:S.privateChats});if(target.snapshot){try{const d=JSON.parse(target.snapshot);Object.assign(S,d)}catch{}}S.activeWorld=target.id;persistRender()});
+  $('[data-card-export]')?.addEventListener('click',exportCharacterCards);
+  $('[data-card-import]')?.addEventListener('click',()=>{const input=document.createElement('input');input.type='file';input.accept='application/json';input.onchange=()=>{const f=input.files[0];const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);for(const c of (d.cards||[])){const id=c.id||uid();const base={...c,id};delete base.memory;delete base.relationship;S.characters.push(base);S.chats[id]||=[];S.memories[id]=c.memory||[];S.relationships[id]=c.relationship||{score:50,label:'熟悉',secrets:[]}}persistRender()}catch{uiAlert({title:'角色卡无法导入',message:'这个文件不是有效的 Elsewhere 角色卡。'})}};r.readAsText(f)};input.click()});
+  $$('.desk-widget').forEach(el=>{let sx=0,sy=0,ox=0,oy=0,moved=false;el.onpointerdown=e=>{sx=e.clientX;sy=e.clientY;ox=parseFloat(el.style.left)||0;oy=parseFloat(el.style.top)||0;el.setPointerCapture(e.pointerId);moved=false};el.onpointermove=e=>{if(!el.hasPointerCapture(e.pointerId))return;const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)+Math.abs(dy)>7)moved=true;el.style.left=Math.max(4,Math.min(292,ox+dx))+'px';el.style.top=Math.max(170,Math.min(690,oy+dy))+'px'};el.onpointerup=e=>{if(!el.hasPointerCapture(e.pointerId))return;el.releasePointerCapture(e.pointerId);const w=S.widgets.find(w=>w.id===el.dataset.widget);if(w){w.x=parseFloat(el.style.left);w.y=parseFloat(el.style.top);save()}if(moved)e.preventDefault()}});
+
+  $$('[data-mood]').forEach(x=>x.onclick=async()=>{const value=Number(x.dataset.mood);const note=await ask('给今天的心情留一句话','',{multiline:true});S.moods.unshift({id:uid(),date:today(),value,note:note||''});persistRender();uiToast('心情已记录')});
+  $('[data-add-mood]')?.addEventListener('click',async()=>{const v=await uiForm({title:'Mood',fields:[{name:'value',label:'心情 1–5',type:'number',value:'4'},{name:'note',label:'一句话',multiline:true,value:''}]});if(!v)return;const value=Math.max(1,Math.min(5,Number(v.value)||4));S.moods.unshift({id:uid(),date:today(),value,note:v.note||''});persistRender();uiToast('心情已记录')});
+  $('[data-add-sleep]')?.addEventListener('click',async()=>{const v=await uiForm({title:'Sleep',fields:[{name:'hours',label:'睡眠小时',type:'number',value:'7.5'},{name:'quality',label:'质量 1–5',type:'number',value:'4'}]});if(!v)return;S.sleep.unshift({id:uid(),date:today(),hours:Number(v.hours)||0,quality:Math.max(1,Math.min(5,Number(v.quality)||4))});persistRender();uiToast('睡眠已记录')});
+  $('[data-add-countdown]')?.addEventListener('click',async()=>{const v=await uiForm({title:'New Countdown',fields:[{name:'title',label:'名称',value:'',placeholder:'例如：旅行'},{name:'date',label:'日期',type:'date',value:today()}]});if(!v?.title||!v.date)return;S.countdowns.push({id:uid(),title:v.title,date:v.date});persistRender();uiToast('倒数日已保存')});
+  $$('[data-del-countdown]').forEach(x=>x.onclick=()=>{S.countdowns=S.countdowns.filter(i=>i.id!==x.dataset.delCountdown);persistRender()});
+  $('[data-add-wish]')?.addEventListener('click',async()=>{const text=await ask('加入愿望清单','',{placeholder:'想拥有、想去、想完成…'});if(text){S.wishlist.unshift({id:uid(),text,done:false});persistRender();uiToast('已加入愿望清单')}});
+  $$('[data-wish]').forEach(x=>x.onchange=()=>{const w=S.wishlist.find(i=>i.id===x.dataset.wish);if(w)w.done=x.checked;persistRender()});
+  $$('[data-del-wish]').forEach(x=>x.onclick=e=>{e.preventDefault();S.wishlist=S.wishlist.filter(i=>i.id!==x.dataset.delWish);persistRender()});
+  $('[data-add-bookmark]')?.addEventListener('click',async()=>{const v=await uiForm({title:'New Bookmark',fields:[{name:'title',label:'名称',value:''},{name:'url',label:'网址',value:'https://'}]});if(!v?.title||!v.url)return;S.bookmarks.unshift({id:uid(),title:v.title,url:v.url});persistRender();uiToast('网页已收藏')});
+  $$('[data-open-link]').forEach(x=>x.onclick=()=>window.open(x.dataset.openLink,'_blank','noopener'));
+  $$('[data-del-bookmark]').forEach(x=>x.onclick=()=>{S.bookmarks=S.bookmarks.filter(i=>i.id!==x.dataset.delBookmark);persistRender()});
+  $$('[data-custom]').forEach(x=>x.onchange=()=>{S.custom[x.dataset.custom]=x.value;persistRender()});
+  $$('[data-custom-color]').forEach(x=>x.oninput=()=>{S.custom[x.dataset.customColor]=x.value;save();applyTheme()});
+  $$('[data-custom-range]').forEach(x=>x.oninput=()=>{S.custom[x.dataset.customRange]=Number(x.value);save();applyTheme();const b=x.closest('label')?.querySelector('b');if(b)b.textContent=x.value+(x.dataset.suffix||'')});
+  $$('[data-custom-choice]').forEach(x=>x.onclick=()=>{S.custom[x.dataset.customChoice]=x.dataset.value;persistRender()});
+  $$('[data-app-visible]').forEach(x=>x.onchange=()=>{const k=x.dataset.appVisible;S.custom.hiddenApps=S.custom.hiddenApps.filter(i=>i!==k);if(!x.checked)S.custom.hiddenApps.push(k);persistRender()});
+  $$('[data-app-edit]').forEach(x=>x.onclick=()=>editAppAppearance(x.dataset.appEdit));
+  $$('[data-app-move]').forEach(x=>x.onclick=()=>{const k=x.dataset.appMove,dir=Number(x.dataset.dir);let arr=orderedApps().map(a=>a[0]);const i=arr.indexOf(k),j=Math.max(0,Math.min(arr.length-1,i+dir));[arr[i],arr[j]]=[arr[j],arr[i]];S.custom.appOrder=arr;persistRender()});
+  $('[data-custom-reset]')?.addEventListener('click',async()=>{if(await uiConfirm({title:'恢复默认装扮',message:'只会恢复视觉设置，不会删除聊天、角色或生活数据。',confirmText:'恢复'})){S.custom=clone(defaultState.custom);S.theme='blush';S.wallpaper='';persistRender();uiToast('默认装扮已恢复')}});
+
+  $$('[data-custom-toggle]').forEach(el=>el.onchange=()=>{S.custom[el.dataset.customToggle]=el.checked;persistRender()});
+  $$('[data-custom-select]').forEach(el=>el.onchange=()=>{S.custom[el.dataset.customSelect]=el.value;persistRender()});
+
+  bindWidgetControls(document);
+  $('[data-social-refresh]')?.addEventListener('click',async()=>{await socialSync();render();uiToast('社交页已刷新')});
+  $('[data-social-post]')?.addEventListener('click',async()=>{const text=await ask('写一条公开短帖','',{multiline:true,placeholder:'一点近况、一句话、一个小发现…'});if(!text)return;await socialWrite('/api/social/post',{author:S.social.userId,text});await socialSync();render()});
+  $$('[data-view-player]').forEach(x=>x.onclick=()=>open('player',x.dataset.viewPlayer));
+  $$('[data-follow-player]').forEach(x=>x.onclick=async()=>{const id=x.dataset.followPlayer;const has=S.social.following.includes(id);S.social.following=has?S.social.following.filter(i=>i!==id):[...S.social.following,id];save();await socialWrite('/api/social/follow',{from:S.social.userId,to:id,follow:!has});render()});
+  $$('[data-social-like]').forEach(x=>x.onclick=async()=>{await socialWrite('/api/social/like',{postId:x.dataset.socialLike,userId:S.social.userId});await socialSync();render()});
+  $$('[data-social-notes]').forEach(x=>x.onclick=()=>{const p=(S.social.feed||[]).find(p=>p.id===x.dataset.socialNotes);if(p){p._open=!p._open;render()}});
+  $$('[data-social-reply]').forEach(x=>x.onclick=async()=>{const text=await ask('写留言','',{placeholder:'留一句话'});if(!text)return;await socialWrite('/api/social/note',{postId:x.dataset.socialReply,author:S.social.userId,name:S.owner.name,text});await socialSync();render()});
+  $('[data-edit-profile]')?.addEventListener('click',editProfile);
+  $('[data-profile-avatar]')?.addEventListener('click',()=>pickProfileImage('avatar'));
+  $('[data-profile-banner]')?.addEventListener('click',()=>pickProfileImage('banner'));
+  studyTick();
+}
+
+async function refreshWeather(){
+  if(!navigator.geolocation){await uiAlert({title:'无法定位',message:'当前浏览器不支持定位，天气卡会继续使用手动天气。'});return;}
+  S.weather.loading=true;persistRender();
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    try{
+      const {latitude,longitude}=pos.coords;
+      const url=`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+      const r=await fetch(url);const d=await r.json();
+      const code=d.current?.weather_code; const desc=code===0?'晴朗':code<3?'少云':code<50?'多云':code<70?'有雨':'天气变化';
+      S.weather={city:'当前位置',temp:Math.round(d.current?.temperature_2m??29).toString(),desc,low:Math.round(d.daily?.temperature_2m_min?.[0]??26).toString(),high:Math.round(d.daily?.temperature_2m_max?.[0]??30).toString(),loading:false};persistRender();
+    }catch{S.weather.loading=false;persistRender();uiAlert({title:'天气暂时离线',message:'暂时没能获取实时天气，Elsewhere 会保留当前天气卡。'})}
+  },()=>{S.weather.loading=false;persistRender();uiAlert({title:'定位权限未开启',message:'没有获得定位权限，所以会继续使用当前天气卡。你也可以之后在系统设置中允许定位。'})},{enableHighAccuracy:false,timeout:10000});
+}
+
+setInterval(()=>{const t=$('#statusTime');if(t)t.textContent=fmtTime();},30000);
+if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+runElapsedWorld();
+pushProfile().then(socialSync).then(()=>render()).catch(()=>{});
+setInterval(()=>{if(S.worldMeta?.auto && !S.locked && Date.now()-(S.worldMeta.lastPulse||0)>(S.worldMeta.pulseMinutes||8)*60000){localWorldPulse();render()}},60000);
+render();
+
+
+// v1.7 micro interaction layer — intentionally subtle and entirely inside Elsewhere.
+if(!window.__elsewhereFxBound){
+  window.__elsewhereFxBound=true;
+  document.addEventListener('pointerdown',e=>{
+    const c=S?.custom||{}; if(!c.clickEffect||c.clickEffect==='none')return;
+    if(e.target.closest('input,textarea,select'))return;
+    const n=Math.max(1,Math.min(4,Number(c.effectStrength)||2));
+    const chars={sparkle:['✦','·','✧'],heart:['♡','·'],petal:['❀','·']}[c.clickEffect]||['✦'];
+    for(let i=0;i<n;i++){
+      const f=document.createElement('i');f.className='tap-fx';f.textContent=chars[i%chars.length];
+      f.style.left=(e.clientX+(i-(n-1)/2)*9)+'px';f.style.top=(e.clientY+(i%2?4:-3))+'px';document.body.appendChild(f);setTimeout(()=>f.remove(),650);
+    }
+  },{passive:true});
+}
