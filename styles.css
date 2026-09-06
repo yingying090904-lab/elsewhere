@@ -443,3 +443,9 @@ body{background:linear-gradient(140deg,#d9c7cb,#eadde0 45%,#cbbabd);}
   .page-widget-zone{grid-auto-rows:70px!important;gap:7px!important}
   .page-widget-zone .hw-clock b{font-size:20px!important}
 }
+
+/* v2.4 mobile interaction hotfix */
+.ew-notification-banner{position:absolute;z-index:180;top:max(48px,calc(env(safe-area-inset-top) + 10px));left:14px;right:14px;display:grid;gap:3px;text-align:left;padding:12px 15px;border-radius:18px;background:color-mix(in srgb,var(--paper) 88%,white);border:1px solid color-mix(in srgb,var(--accent) 16%,white);box-shadow:0 12px 36px rgba(65,42,50,.16);backdrop-filter:blur(22px);transform:translateY(-130%);opacity:0;transition:.28s cubic-bezier(.2,.8,.2,1);color:var(--ink)}
+.ew-notification-banner.show{transform:translateY(0);opacity:1}.ew-notification-banner small{font:7px/1.2 sans-serif;letter-spacing:.16em;color:var(--accent)}.ew-notification-banner b{font:11px/1.45 Georgia,serif;font-weight:600}
+.home-handle{position:fixed!important;z-index:90;left:50%!important;bottom:max(8px,env(safe-area-inset-bottom))!important;transform:translateX(-50%);width:94px!important;height:24px!important;background:transparent!important}.home-handle span{display:block;width:46px;height:4px;margin:auto;border-radius:99px;background:color-mix(in srgb,var(--ink) 28%,transparent)}
+@media(max-width:480px){.notification-shade{padding-top:max(18px,env(safe-area-inset-top))}.phone-dock{bottom:max(14px,env(safe-area-inset-bottom))!important}}

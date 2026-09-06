@@ -1,9 +1,9 @@
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-const KEY = 'elsewhere-v23-state';
-const LEGACY_KEY = 'elsewhere-v22-state';
+const KEY = 'elsewhere-v24-state';
+const LEGACY_KEY = 'elsewhere-v23-state';
 const LEGACY_KEY_2 = 'elsewhere-v21-state';
-const VERSION = '2.3.0-bento-home';
+const VERSION = '2.4.0-mobile-gestures';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -450,6 +450,17 @@ function uiAlert({title='Elsewhere',message='',button='知道了'}={}){
 function uiToast(message,{tone='paper',duration=2200}={}){
   const layer=uiLayer(); const t=document.createElement('div'); t.className=`ew-toast ${tone}`; t.innerHTML=`<b>${esc(message)}</b>`; layer.appendChild(t); requestAnimationFrame(()=>t.classList.add('show')); setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),180)},duration);
 }
+
+function pushBanner(title,text,target='thomas'){
+  const old=document.querySelector('.ew-notification-banner'); old?.remove();
+  const b=document.createElement('button'); b.className='ew-notification-banner'; b.innerHTML=`<small>${esc(title||'ELSEWHERE')}</small><b>${esc(text||'')}</b>`;
+  b.onclick=()=>{b.remove();open(target)}; document.querySelector('.phone')?.appendChild(b);
+  requestAnimationFrame(()=>b.classList.add('show')); setTimeout(()=>{b.classList.remove('show');setTimeout(()=>b.remove(),220)},4200);
+}
+function addNotification(title,text,target='thomas'){
+  S.notifications.unshift({id:uid(),title,text,ts:Date.now(),read:false,target}); save();
+  if(!S.locked) setTimeout(()=>pushBanner(title,text,target),80);
+}
 async function ask(label,def='',opts={}){ return uiPrompt({title:label,value:def,...opts}); }
 function open(k,arg=null){
   if(k==='home'){homeEdit=false; const v=$('.view'); if(v){v.classList.add('going-home');setTimeout(()=>{current='home';currentArg=null;render()},140);return;} current='home';currentArg=null;render();return;}
@@ -509,7 +520,7 @@ async function sendChat(id,text){
   let reply='';
   try{const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({character:{name:c.name,personality:c.personality,relationship:c.relation,style:c.style},world:{summary:'A private everyday world inside Elsewhere.'},messages:S.chats[id].slice(-20).map(x=>({role:x.role,content:x.text}))})}); if(r.ok) reply=(await r.json()).content||'';}catch{}
   if(!reply){ const generic=['知道了。','你终于想起回我了。','嗯，然后呢？','好。别又忙到忘记吃东西。']; reply=generic[Math.floor(Math.random()*generic.length)]; }
-  S.chats[id].push({id:uid(),role:'assistant',text:reply,ts:Date.now()}); S.notifications.unshift({id:uid(),title:c.name,text:reply,ts:Date.now(),read:false}); save(); render();
+  S.chats[id].push({id:uid(),role:'assistant',text:reply,ts:Date.now()}); addNotification(c.name,reply,'messages'); render();
 }
 function rememberFromChat(id,text){
   S.memories[id] ||= []; S.relationships[id] ||= {score:50,label:'熟悉',secrets:[]};
@@ -520,7 +531,7 @@ function rememberFromChat(id,text){
 function localWorldPulse(){
   if(S.characters.length<1)return; const c=S.characters[Math.floor(Math.random()*S.characters.length)];
   S.chats[c.id] ||= []; const texts=['刚刚路过一家店，第一反应居然是你会喜欢。','你今天安静得有点过分。','突然想起你之前说的那件事。','别忘了吃东西。这个不是建议。','我本来不想发消息的。算了。']; const text=texts[Math.floor(Math.random()*texts.length)];
-  S.chats[c.id].push({id:uid(),role:'assistant',text,ts:Date.now(),proactive:true});S.notifications.unshift({id:uid(),title:c.name,text,ts:Date.now(),read:false});
+  S.chats[c.id].push({id:uid(),role:'assistant',text,ts:Date.now(),proactive:true});addNotification(c.name,text,'messages');
   if(Math.random()<.65){const post=['今天的风有点像旧照片。','有些普通瞬间，反而最难忘。','突然很想把今天保存下来。','雨停以后，街上闻起来很干净。'][Math.floor(Math.random()*4)];const comments=[];const other=S.characters.find(x=>x.id!==c.id);if(other&&Math.random()<.7)comments.push({who:other.id,text:['你又开始了。','这句倒是挺像你。','我知道你在说谁。'][Math.floor(Math.random()*3)]});S.moments.unshift({id:uid(),who:c.id,text:post,ts:Date.now(),likes:Math.floor(Math.random()*12),comments})}
   if(S.characters.length>1&&Math.random()<.8){const b=S.characters.find(x=>x.id!==c.id);S.privateChats.unshift({id:uid(),a:c.id,b:b.id,ts:Date.now(),messages:[{who:c.id,text:'她今天是不是有点累？'},{who:b.id,text:'你自己去问。别绕我。'}]})}
   const r=S.relationships[c.id]||(S.relationships[c.id]={score:50,label:'熟悉',secrets:[]});if(Math.random()<.35&&r.secrets.length<8)r.secrets.push(['其实很在意你有没有回消息。','把你随口说过的话记下来了。','有一件事想告诉你，但还没找到时机。'][Math.floor(Math.random()*3)]);
@@ -529,7 +540,7 @@ function localWorldPulse(){
 function runElapsedWorld(){const elapsed=Date.now()-(S.worldMeta?.lastPulse||Date.now());if(S.worldMeta?.auto&&elapsed>Math.max(4,S.worldMeta.pulseMinutes||8)*60000)localWorldPulse()}
 function startCall(id){const c=ch(id);if(!c)return;const started=Date.now();const overlay=document.createElement('div');overlay.className='call-overlay';overlay.innerHTML=`<div class="call-card">${avatar(c)}<small>ELSEWHERE CALL</small><h2>${esc(c.name)}</h2><p id="callState">正在连接…</p><div class="call-rings">connecting</div><button id="hangup">挂断</button></div>`;document.body.appendChild(overlay);setTimeout(()=>{const el=$('#callState');if(el)el.textContent='已接通 · 00:01'},900);$('#hangup').onclick=()=>{S.callLogs.unshift({id:uid(),character:id,ts:started,duration:Math.max(1,Math.floor((Date.now()-started)/1000))});save();overlay.remove()}}
 function exportCharacterCards(){const cards=S.characters.map(c=>({...c,memory:S.memories[c.id]||[],relationship:S.relationships[c.id]||null}));const blob=new Blob([JSON.stringify({format:'elsewhere-character-cards',version:1,cards},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='elsewhere-character-cards.json';a.click();URL.revokeObjectURL(a.href)}
-function studyTick(){clearInterval(timer); if(!S.study.running)return; S.study.lastTick=Date.now(); timer=setInterval(()=>{ if(!S.study.running){clearInterval(timer);return;} if(S.study.seconds>0) S.study.seconds--; else {S.study.running=false; S.study.totalMinutes+=25; S.notifications.unshift({id:uid(),title:'书房',text:'这一轮专注结束了。休息一下吧。',ts:Date.now(),read:false}); save(); clearInterval(timer);} const el=$('#timerText'); if(el){const m=String(Math.floor(S.study.seconds/60)).padStart(2,'0'),s=String(S.study.seconds%60).padStart(2,'0');el.textContent=`${m}:${s}`;} },1000)}
+function studyTick(){clearInterval(timer); if(!S.study.running)return; S.study.lastTick=Date.now(); timer=setInterval(()=>{ if(!S.study.running){clearInterval(timer);return;} if(S.study.seconds>0) S.study.seconds--; else {S.study.running=false; S.study.totalMinutes+=25; addNotification('书房','这一轮专注结束了。休息一下吧。','study'); clearInterval(timer);} const el=$('#timerText'); if(el){const m=String(Math.floor(S.study.seconds/60)).padStart(2,'0'),s=String(S.study.seconds%60).padStart(2,'0');el.textContent=`${m}:${s}`;} },1000)}
 
 
 async function socialWrite(path,body){try{const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw 0;return await r.json()}catch{uiToast('社交服务暂时离线');return null}}
@@ -602,8 +613,17 @@ function phoneOSBind(){
   $('[data-notif-clear]')?.addEventListener('click',()=>{S.notifications=[];save();render()});
   const lockPages=$('#lockPages'); if(lockPages){lockPages.addEventListener('scroll',()=>{const i=Math.round(lockPages.scrollLeft/(lockPages.clientWidth||1));$$('.lock-dots i').forEach((d,j)=>d.classList.toggle('active',i===j))},{passive:true})}
   let gesture=null;
-  phone.addEventListener('pointerdown',e=>{const r=phone.getBoundingClientRect();gesture={x:e.clientX,y:e.clientY,top:e.clientY-r.top<78,bottom:r.bottom-e.clientY<72,t:Date.now()};},{passive:true});
-  phone.addEventListener('pointerup',e=>{if(!gesture)return;const dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;if(gesture.top&&dy>64&&Math.abs(dy)>Math.abs(dx)){shadeOpen=true;$('#notificationShade')?.classList.add('open')}else if(gesture.bottom&&dy<-68&&Math.abs(dy)>Math.abs(dx)&&current!=='home'){open('home')}else if(S.locked&&dy<-72&&Math.abs(dy)>Math.abs(dx)){S.locked=false;persistRender()}gesture=null;},{passive:true});
+  const gestureStart=(x,y)=>{const r=phone.getBoundingClientRect();gesture={x,y,top:y-r.top<105,bottom:r.bottom-y<150,t:Date.now()};};
+  const gestureEnd=(x,y)=>{if(!gesture)return;const dx=x-gesture.x,dy=y-gesture.y,vertical=Math.abs(dy)>Math.abs(dx)*1.15;
+    if(gesture.top&&dy>54&&vertical){shadeOpen=true;$('#notificationShade')?.classList.add('open')}
+    else if(S.locked&&dy<-54&&vertical){S.locked=false;persistRender()}
+    else if(gesture.bottom&&dy<-54&&vertical&&current!=='home'){open('home')}
+    gesture=null;
+  };
+  phone.addEventListener('pointerdown',e=>gestureStart(e.clientX,e.clientY),{passive:true});
+  phone.addEventListener('pointerup',e=>gestureEnd(e.clientX,e.clientY),{passive:true});
+  phone.addEventListener('touchstart',e=>{const t=e.touches[0];if(t)gestureStart(t.clientX,t.clientY)},{passive:true});
+  phone.addEventListener('touchend',e=>{const t=e.changedTouches[0];if(t)gestureEnd(t.clientX,t.clientY)},{passive:true});
   $$('.phone-app-grid [data-app-key]').forEach(el=>{
     let hold=0, ghost=null, sx=0, sy=0, moved=false;
     const key=el.dataset.appKey;
@@ -666,6 +686,9 @@ function phoneOSBind(){
 }
 function bind(){
   ensureHomeNavigation();
+  // iOS Safari: delegated navigation keeps widgets/dock tappable even after touch/long-press handlers.
+  const phoneRoot=$('.phone');
+  phoneRoot?.addEventListener('click',e=>{const x=e.target.closest?.('[data-open]');if(!x)return;if(homeEdit&&x.closest('.phone-app-grid'))return;e.preventDefault();e.stopPropagation();open(x.dataset.open)},true);
   phoneOSBind();
   $$('[data-unlock]').forEach(x=>x.onclick=()=>{S.locked=false;persistRender()});
   $$('[data-home]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();open('home')});
