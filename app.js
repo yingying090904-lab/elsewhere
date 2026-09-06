@@ -2,7 +2,7 @@ const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const KEY = 'elsewhere-state';
 const LEGACY_KEYS = ['elsewhere-v242-state','elsewhere-v24-state','elsewhere-v23-state','elsewhere-v22-state','elsewhere-v21-state','elsewhere-v20-state'];
-const VERSION = '2.6.0-lockscreen-free-home';
+const VERSION = '2.6.2-pinterest-pages';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -23,7 +23,7 @@ const themes = {
 const defaultState = {
   theme:'blush', locked:true, owner:{name:'Ann',handle:'ann',bio:'collecting little things from ordinary days.',status:'somewhere between busy and daydreaming.',avatar:'',banner:'',tags:['scrapbook','study']}, wallpaper:'',
   social:{userId:'u-'+uid(),following:[],feed:[],lastSync:0},
-  custom:{title:'Elsewhere',subtitle:'此刻以外',tagline:'A SMALL PHONE, A BIGGER YOU',quote:'same sky, different dreams.',accent:'',paper:'',ink:'',radius:28,font:'serif',density:'cozy',iconShape:'soft',appOrder:[],hiddenApps:[],aliases:{},cardOpacity:88,blur:22,shadow:16,grain:24,spacing:18,appSize:58,dockOpacity:82,borderStrength:18,titleScale:100,wallpaperTint:14, iconStyle:'star', showHomeAvatar:true, clickEffect:'sparkle', effectStrength:2, compactApps:true, pageWallpapers:{}, folders:[], homeLayout:[], homeWidgets:[{id:'hw-clock',type:'clock',page:0,size:'1x1'},{id:'hw-todo',type:'todo',page:0,size:'1x1'},{id:'hw-thomas',type:'thomas',page:0,size:'2x1'},{id:'hw-weather',type:'weather',page:0,size:'2x1'},{id:'hw-study',type:'study',page:0,size:'2x1'}]},
+  custom:{title:'Elsewhere',subtitle:'此刻以外',tagline:'A SMALL PHONE, A BIGGER YOU',quote:'same sky, different dreams.',accent:'',paper:'',ink:'',radius:28,font:'serif',density:'cozy',iconShape:'soft',appOrder:[],hiddenApps:[],aliases:{},cardOpacity:88,blur:22,shadow:16,grain:24,spacing:18,appSize:58,dockOpacity:82,borderStrength:18,titleScale:100,wallpaperTint:14, iconStyle:'star', showHomeAvatar:true, clickEffect:'sparkle', effectStrength:2, compactApps:true, pageWallpapers:{}, folders:[], homeLayout:[], homeWidgets:[{id:'hw-clock',type:'clock',page:0,size:'1x1'},{id:'hw-todo',type:'todo',page:0,size:'1x1'},{id:'hw-thomas',type:'thomas',page:0,size:'2x1'},{id:'hw-weather',type:'weather',page:1,size:'2x1'},{id:'hw-study',type:'study',page:1,size:'2x1'}],homeLayoutRevision:'v262'},
   weather:{city:'Elsewhere',temp:'29',desc:'大毛毛雨 · 微风',low:'26',high:'30',loading:false},
   characters:[
     {id:'victor',name:'Victor',initial:'V',relation:'close friend',status:'last seen just now',color:'#92727b',personality:'敏锐、克制、有点坏心眼，会记住细节。',style:'自然短句，偶尔很轻地调侃。'},
@@ -87,6 +87,19 @@ function load(){
     out.custom=Object.assign(clone(defaultState.custom),out.custom||{});
     delete out.custom.desktopEdit; delete out.custom.stickers;
     out.custom.pageWallpapers ||= {}; out.custom.folders ||= []; out.custom.homeLayout ||= []; out.custom.homeWidgets ||= clone(defaultState.custom.homeWidgets); out.custom.homeWidgets=out.custom.homeWidgets.map(w=>Object.assign({page:0,size:'2x1'},w));
+    // v2.6.2: rebalance the stock widgets across the first two pages once.
+    // Custom widgets keep their page; only the five built-in starter widgets are migrated.
+    if(out.custom.homeLayoutRevision!=='v262'){
+      const stockPages={
+        'hw-clock':{page:0,size:'1x1'},
+        'hw-todo':{page:0,size:'1x1'},
+        'hw-thomas':{page:0,size:'2x1'},
+        'hw-weather':{page:1,size:'2x1'},
+        'hw-study':{page:1,size:'2x1'}
+      };
+      out.custom.homeWidgets.forEach(w=>{const v=stockPages[w.id];if(v){w.page=v.page;w.size=v.size;}});
+      out.custom.homeLayoutRevision='v262';
+    }
     if(!fresh){
       const defaults=new Map([['hw-clock','1x1'],['hw-todo','1x1'],['hw-thomas','2x1'],['hw-weather','2x1'],['hw-study','2x1']]);
       out.custom.homeWidgets.forEach(w=>{ if(defaults.has(w.id)) w.size=defaults.get(w.id); });
@@ -287,7 +300,7 @@ function htmlToElement(html){const t=document.createElement('template');t.innerH
 function home(){
   const now=new Date(), day=now.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
   const layout=ensureHomeLayout().filter(k=>String(k).startsWith('folder:')||!S.custom.hiddenApps.includes(k));
-  const favorites=layout.slice(0,4), rest=layout.slice(4);
+  const favorites=layout.slice(0,8), rest=layout.slice(8);
   const pages=[]; for(let i=0;i<rest.length;i+=12) pages.push(rest.slice(i,i+12)); if(!pages.length)pages.push([]);
   const pageCount=Math.max(pages.length, Math.max(1,...(S.custom.homeWidgets||[]).map(w=>Number(w.page)||0)));
   while(pages.length<pageCount)pages.push([]);
@@ -662,7 +675,7 @@ function moveLayoutEntry(key,targetKey){
   const a=S.custom.homeLayout; const i=a.indexOf(key),j=a.indexOf(targetKey); if(i<0||j<0||i===j)return; a.splice(i,1); a.splice(j,0,key); save();
 }
 function moveAppToPage(key,page){
-  const a=S.custom.homeLayout; const i=a.indexOf(key); if(i<0)return; a.splice(i,1); const appPage=Math.max(0,page); const insert=appPage===0?0:Math.min(a.length,4+(appPage-1)*12+12); a.splice(insert,0,key); save();
+  const a=S.custom.homeLayout; const i=a.indexOf(key); if(i<0)return; a.splice(i,1); const appPage=Math.max(0,page); const insert=appPage===0?0:Math.min(a.length,8+(appPage-1)*12+12); a.splice(insert,0,key); save();
 }
 function addAppToFolder(key,fid){
   const f=folderById(fid); if(!f||f.apps.includes(key))return; S.custom.homeLayout=S.custom.homeLayout.filter(x=>x!==key); f.apps.push(key); save();
@@ -728,7 +741,7 @@ function phoneOSBind(){
       const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)+Math.abs(dy)<5&&!ghost)return;moved=true;
       if(!ghost){ghost=el.cloneNode(true);ghost.classList.add('drag-ghost','widget-drag-ghost');document.body.appendChild(ghost)}
       ghost.style.left=e.clientX+'px';ghost.style.top=e.clientY+'px';
-      document.querySelectorAll('.is-drop-target,.is-folder-target').forEach(x=>x.classList.remove('is-drop-target','is-folder-target')); const under=document.elementFromPoint(e.clientX,e.clientY); const folderHit=under?.closest?.('[data-folder-key]'); const appHit=under?.closest?.('[data-app-key]'); if(folderHit)folderHit.classList.add('is-folder-target'); else if(appHit&&appHit.dataset.appKey!==key)appHit.classList.add('is-drop-target');
+      document.querySelectorAll('.is-drop-target,.is-folder-target').forEach(x=>x.classList.remove('is-drop-target','is-folder-target')); const under=document.elementFromPoint(e.clientX,e.clientY); const folderHit=under?.closest?.('[data-folder-key]'); const appHit=under?.closest?.('[data-app-key]'); if(folderHit)folderHit.classList.add('is-folder-target'); else if(appHit)appHit.classList.add('is-drop-target');
       const hp=$('#homePages');if(hp){const r=hp.getBoundingClientRect();if(e.clientX>r.right-34&&homePage<$$('.home-page').length-1){homePage++;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}else if(e.clientX<r.left+34&&homePage>0){homePage--;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}}
       e.preventDefault();
     };
@@ -829,7 +842,48 @@ function bind(){
   $('[data-passcode-delete]')?.addEventListener('click',()=>{passcodeBuffer=passcodeBuffer.slice(0,-1);updatePasscodeDots()});
   $$('[data-home]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();open('home')});
   $$('[data-open]').forEach(x=>x.onclick=e=>{e.stopPropagation();if(homeEdit&&x.closest('.phone-app-grid'))return;open(x.dataset.open)});
-  const homePages=$('#homePages'); if(homePages){ requestAnimationFrame(()=>{homePages.scrollLeft=homePage*homePages.clientWidth}); let raf=0; homePages.addEventListener('scroll',()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const w=homePages.clientWidth||1;homePage=Math.round(homePages.scrollLeft/w);$$('[data-home-dot]').forEach((d,i)=>d.classList.toggle('active',i===homePage));});},{passive:true}); $$('[data-home-dot]').forEach(d=>d.onclick=()=>{homePage=Number(d.dataset.homeDot)||0;homePages.scrollTo({left:homePage*homePages.clientWidth,behavior:'smooth'});}); }
+  const homePages=$('#homePages'); if(homePages){
+    requestAnimationFrame(()=>{homePages.scrollLeft=homePage*homePages.clientWidth});
+    let raf=0, snapTimer=0, swipe=null;
+    const pageCount=()=>$$('.home-page',homePages).length;
+    const snapTo=(page,behavior='smooth')=>{
+      const w=homePages.clientWidth||1;
+      homePage=Math.max(0,Math.min(pageCount()-1,Number(page)||0));
+      homePages.scrollTo({left:homePage*w,behavior});
+      $$('[data-home-dot]').forEach((d,i)=>d.classList.toggle('active',i===homePage));
+    };
+    homePages.addEventListener('touchstart',e=>{
+      const t=e.touches?.[0]; if(!t||homeEdit)return;
+      const w=homePages.clientWidth||1;
+      swipe={x:t.clientX,y:t.clientY,page:Math.round(homePages.scrollLeft/w)};
+      clearTimeout(snapTimer);
+    },{passive:true});
+    homePages.addEventListener('touchend',e=>{
+      if(!swipe||homeEdit)return;
+      const t=e.changedTouches?.[0]; if(!t){swipe=null;return;}
+      const dx=t.clientX-swipe.x, dy=t.clientY-swipe.y;
+      let target=swipe.page;
+      if(Math.abs(dx)>Math.abs(dy)*1.15 && Math.abs(dx)>34) target += dx<0?1:-1;
+      else target=Math.round(homePages.scrollLeft/(homePages.clientWidth||1));
+      swipe=null;
+      // Settle only after the finger is up. This keeps native movement fluid but
+      // prevents iOS Safari from stopping between pages.
+      requestAnimationFrame(()=>snapTo(target,'smooth'));
+    },{passive:true});
+    homePages.addEventListener('scroll',()=>{
+      cancelAnimationFrame(raf);
+      raf=requestAnimationFrame(()=>{
+        const w=homePages.clientWidth||1;
+        const nearest=Math.round(homePages.scrollLeft/w);
+        $$('[data-home-dot]').forEach((d,i)=>d.classList.toggle('active',i===nearest));
+        clearTimeout(snapTimer);
+        snapTimer=setTimeout(()=>{
+          if(!homeEdit && !swipe){homePage=nearest;const off=Math.abs(homePages.scrollLeft-nearest*w);if(off>2)snapTo(nearest,'smooth');}
+        },90);
+      });
+    },{passive:true});
+    $$('[data-home-dot]').forEach(d=>d.onclick=()=>snapTo(Number(d.dataset.homeDot)||0,'smooth'));
+  }
   $$('[data-chat]').forEach(x=>x.onclick=()=>open('messages',x.dataset.chat));
   $$('[data-chat-send]').forEach(x=>x.onclick=()=>{const inp=$('#chatInput');sendChat(x.dataset.chatSend,inp.value.trim())});
   const ci=$('#chatInput'); if(ci)ci.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('[data-chat-send]')?.click()}};

@@ -928,3 +928,150 @@ body,#app,.shell{
 /* Dock stays above the home indicator while the wallpaper continues behind it. */
 .swipe-home>.phone-dock{bottom:calc(12px + env(safe-area-inset-bottom))!important}
 .home-page-dots{bottom:calc(88px + env(safe-area-inset-bottom))!important}
+
+/* v2.6.2 — Pinterest-inspired two-page home + reliable iOS page snapping
+   No generated images: composition, spacing and decoration are CSS only. */
+.home-pages{
+  overflow-x:scroll!important;
+  overflow-y:hidden!important;
+  scroll-snap-type:x mandatory!important;
+  scroll-padding:0!important;
+  overscroll-behavior-x:none!important;
+  touch-action:pan-x pan-y!important;
+}
+.home-page{
+  flex:0 0 100%!important;
+  width:100%!important;
+  min-width:100%!important;
+  max-width:100%!important;
+  scroll-snap-align:start!important;
+  scroll-snap-stop:always!important;
+  touch-action:pan-x pan-y!important;
+}
+.today-page,.app-page{box-sizing:border-box!important}
+
+/* Editorial first page: shorter masthead, tighter profile, more useful content. */
+.today-page{padding:18px 26px 158px!important}
+.today-page .tumblr-statusline{margin-bottom:9px!important;padding-bottom:9px!important}
+.today-page .tumblr-brand{margin:0 0 12px!important;padding:0 0 13px!important}
+.today-page .tumblr-brand small{font-size:7px!important;letter-spacing:.20em!important}
+.today-page .tumblr-brand h1{font-size:clamp(50px,14.2vw,66px)!important;line-height:.9!important;margin:3px 0 5px!important;letter-spacing:-.055em!important}
+.today-page .tumblr-brand>div{align-items:end!important}
+.today-page .tumblr-brand p{font-size:13px!important}
+.today-page .tumblr-brand em{font-size:9px!important;white-space:nowrap!important}
+.today-page .home-profile-chip{margin:8px 0 12px!important;min-height:56px!important;padding:7px 9px!important;gap:10px!important}
+.today-page .home-profile-chip>span,.today-page .home-profile-chip>img{width:47px!important;height:47px!important;min-width:47px!important}
+.today-page .home-profile-chip b{font-size:18px!important}
+
+/* Page 1 widgets: a single crisp editorial row. */
+.today-page .page-widget-zone{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-auto-rows:72px!important;
+  gap:9px!important;
+  padding:0!important;
+  margin:0!important;
+}
+.today-page .page-widget-zone .home-widget[data-widget-size="1x1"]{grid-column:span 1!important}
+.today-page .page-widget-zone .home-widget[data-widget-size="2x1"]{grid-column:span 2!important}
+.today-page .page-widget-zone .home-widget{border-radius:19px!important}
+.today-page .hw-clock b,.today-page .hw-todo b{font-size:20px!important}
+.today-page .hw-thomas b{font-size:21px!important}
+
+/* Eight normal-size shortcuts make the first page feel lived-in instead of empty. */
+.home-shortcuts{margin-top:13px!important;padding-top:11px!important}
+.home-shortcuts>header{margin-bottom:10px!important}
+.home-favorite-grid{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-auto-rows:auto!important;
+  gap:15px 8px!important;
+  padding:0!important;
+}
+.home-favorite-grid .tumblr-app{min-height:72px!important}
+.home-favorite-grid .app-visual{width:50px!important;height:50px!important;min-height:50px!important;border-radius:16px!important}
+.home-favorite-grid .app-copy b{font-size:10px!important}
+
+/* Page 2+: widgets above a strict, normal 4-column app grid. */
+.app-page{padding:20px 26px 158px!important}
+.app-page .page-kicker{margin:0 0 12px!important;padding:2px 2px 10px!important}
+.app-page .page-widget-zone{
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-auto-rows:72px!important;
+  gap:9px!important;
+  padding:0!important;
+  margin:0 0 18px!important;
+}
+.app-page .page-widget-zone:empty{display:none!important}
+.app-page .page-widget-zone .home-widget[data-widget-size="1x1"]{grid-column:span 1!important}
+.app-page .page-widget-zone .home-widget[data-widget-size="2x1"]{grid-column:span 2!important}
+.app-page .page-widget-zone .home-widget[data-widget-size="2x2"]{grid-column:span 2!important;grid-row:span 2!important}
+.app-page .page-widget-zone .home-widget[data-widget-size="4x2"]{grid-column:span 4!important;grid-row:span 2!important}
+
+/* Lock the launcher icons back to one familiar phone size. */
+.app-page .classic-app-grid,
+.app-page .phone-app-grid{
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-auto-flow:row!important;
+  grid-auto-rows:78px!important;
+  gap:17px 8px!important;
+  padding:2px 0 18px!important;
+  align-items:start!important;
+  justify-items:stretch!important;
+}
+.app-page .phone-app-grid .tumblr-app{
+  position:relative!important;
+  inset:auto!important;
+  transform:none;
+  grid-column:auto!important;
+  grid-row:auto!important;
+  width:100%!important;
+  min-width:0!important;
+  min-height:78px!important;
+  margin:0!important;
+  padding:0!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:7px!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  overflow:visible!important;
+}
+.app-page .phone-app-grid .app-visual{
+  width:56px!important;height:56px!important;min-height:56px!important;
+  border-radius:17px!important;
+  background:color-mix(in srgb,var(--paper) 95%,white)!important;
+  border:1px solid color-mix(in srgb,var(--accent) 11%,transparent)!important;
+  box-shadow:0 6px 15px color-mix(in srgb,var(--ink) 6%,transparent),inset 0 0 0 1px rgba(255,255,255,.48)!important;
+}
+.app-page .phone-app-grid .app-copy b{font-size:10.5px!important;font-weight:500!important}
+.app-page .phone-app-grid .app-copy small{display:none!important}
+
+/* Cleaner Pinterest-style hierarchy: soft structure, not giant empty circles. */
+.home-page::before{backdrop-filter:none!important;background:linear-gradient(180deg,color-mix(in srgb,var(--paper) 10%,transparent),color-mix(in srgb,var(--accent2) 4%,transparent))!important}
+.today-page::after,.app-page::after{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:
+    linear-gradient(90deg,transparent 0 9%,color-mix(in srgb,var(--accent) 5%,transparent) 9% 9.15%,transparent 9.15% 90.85%,color-mix(in srgb,var(--accent) 5%,transparent) 90.85% 91%,transparent 91%),
+    repeating-linear-gradient(0deg,transparent 0 116px,color-mix(in srgb,var(--ink) 2.6%,transparent) 116px 117px);
+}
+
+/* Dragging is unmistakable without jittering the whole grid. */
+.home-edit .home-widget,.home-edit .tumblr-app{outline:1.5px dashed color-mix(in srgb,var(--accent) 55%,transparent)!important;outline-offset:4px!important}
+.is-drag-source{opacity:.18!important;transform:scale(.9)!important;filter:saturate(.7)!important}
+.drag-ghost{opacity:.99!important;transform:translate(-50%,-50%) scale(1.13) rotate(-1.2deg)!important;filter:drop-shadow(0 20px 28px color-mix(in srgb,var(--ink) 28%,transparent))!important;outline:2px solid color-mix(in srgb,var(--accent) 75%,white)!important;outline-offset:6px!important}
+.is-drop-target{outline:2px solid var(--accent)!important;outline-offset:6px!important;transform:scale(1.06)!important}
+.is-folder-target{outline:3px solid var(--accent)!important;outline-offset:7px!important;box-shadow:0 0 0 9px color-mix(in srgb,var(--accent) 12%,transparent)!important}
+
+@media(max-width:390px){
+  .today-page,.app-page{padding-left:20px!important;padding-right:20px!important}
+  .today-page .tumblr-brand h1{font-size:52px!important}
+  .home-favorite-grid{gap:13px 5px!important}
+  .home-favorite-grid .app-visual{width:47px!important;height:47px!important;min-height:47px!important}
+  .app-page .phone-app-grid{gap:15px 5px!important}
+  .app-page .phone-app-grid .app-visual{width:53px!important;height:53px!important;min-height:53px!important}
+}
