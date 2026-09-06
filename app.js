@@ -116,6 +116,15 @@ function load(){
 }
 let S=load(), current='home', currentArg=null, timer=null, todoTab='todo', homePage=0, homeEdit=false, dragState=null, shadeOpen=false, calendarOffset=0, lockStage='welcome', passcodeBuffer='';
 S.locked=true;
+// v2.6.3 one-time home cleanup: split the core widgets over the first two pages.
+if(!S.custom.v263WidgetSplit){
+  (S.custom.homeWidgets||[]).forEach(w=>{
+    if(['clock','todo','thomas'].includes(w.type)) w.page=0;
+    if(['weather','study'].includes(w.type)) w.page=1;
+  });
+  S.custom.v263WidgetSplit=true;
+  save();
+}
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){console.warn('Elsewhere save failed',e);} }
 window.addEventListener('pagehide',save); window.addEventListener('beforeunload',save); document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
 function ch(id){ return S.characters.find(x=>x.id===id); }
@@ -300,7 +309,7 @@ function htmlToElement(html){const t=document.createElement('template');t.innerH
 function home(){
   const now=new Date(), day=now.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
   const layout=ensureHomeLayout().filter(k=>String(k).startsWith('folder:')||!S.custom.hiddenApps.includes(k));
-  const favorites=layout.slice(0,8), rest=layout.slice(8);
+  const favorites=layout.slice(0,4), rest=layout.slice(4);
   const pages=[]; for(let i=0;i<rest.length;i+=12) pages.push(rest.slice(i,i+12)); if(!pages.length)pages.push([]);
   const pageCount=Math.max(pages.length, Math.max(1,...(S.custom.homeWidgets||[]).map(w=>Number(w.page)||0)));
   while(pages.length<pageCount)pages.push([]);
