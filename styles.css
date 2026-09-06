@@ -771,3 +771,160 @@ html,body,#app,.shell{height:100dvh!important;min-height:100dvh!important;max-he
   .app-page .phone-app-grid{grid-auto-rows:82px!important;gap:9px!important}
   .today-page .tumblr-brand h1{font-size:42px!important}
 }
+
+/* =========================================================
+   v2.6 — editorial phone home / classic apps / lock + drag
+   ========================================================= */
+
+/* Keep the visual field crisp and intentional. */
+.phone{background:
+  radial-gradient(circle at 86% 10%,color-mix(in srgb,var(--accent2) 16%,transparent),transparent 28%),
+  linear-gradient(180deg,color-mix(in srgb,var(--paper) 97%,white),color-mix(in srgb,var(--accent2) 12%,var(--paper)))!important;
+}
+.phone:before{opacity:.34!important;background:
+  linear-gradient(90deg,transparent 0 7.5%,color-mix(in srgb,var(--accent) 7%,transparent) 7.5% 7.65%,transparent 7.65% 92.35%,color-mix(in srgb,var(--accent) 7%,transparent) 92.35% 92.5%,transparent 92.5%),
+  repeating-linear-gradient(0deg,transparent 0 54px,color-mix(in srgb,var(--ink) 3%,transparent) 54px 55px)!important;
+  mix-blend-mode:normal!important;
+}
+.phone:after{right:-146px!important;top:124px!important;width:310px!important;height:310px!important;border-color:color-mix(in srgb,var(--accent) 9%,transparent)!important;box-shadow:0 0 0 62px color-mix(in srgb,var(--accent2) 4%,transparent)!important}
+
+/* First launcher page: denser magazine layout, without fake blur. */
+.today-page{padding:18px 28px 176px!important;overflow-y:auto!important;overscroll-behavior:contain!important}
+.today-page .tumblr-statusline{margin-bottom:8px!important;padding-bottom:8px!important;border-bottom:1px solid color-mix(in srgb,var(--accent) 11%,transparent)!important}
+.today-page .tumblr-brand{padding:4px 0 10px!important;margin-bottom:8px!important}
+.today-page .tumblr-brand h1{font-size:clamp(45px,12vw,58px)!important;line-height:.88!important;letter-spacing:-.055em!important}
+.today-page .tumblr-brand>div{margin-top:8px!important}
+.today-page .home-profile-chip{margin:0 0 9px!important;padding:5px 0 9px!important;background:transparent!important;border-radius:0!important;box-shadow:none!important}
+.today-page .home-widget-grid{padding-bottom:8px!important}
+.today-page>.home-widget-grid:after{display:none!important}
+.home-widget{box-shadow:0 8px 24px color-mix(in srgb,var(--ink) 5%,transparent)!important;border-color:color-mix(in srgb,var(--accent) 10%,transparent)!important;background:color-mix(in srgb,var(--paper) 92%,white)!important}
+.home-widget small{letter-spacing:.13em!important}
+
+.home-shortcuts{margin-top:13px;padding-top:10px;border-top:1px solid color-mix(in srgb,var(--accent) 10%,transparent);position:relative;z-index:3}
+.home-shortcuts>header{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;margin-bottom:9px;color:var(--muted)}
+.home-shortcuts>header small{font:7px Georgia,serif;letter-spacing:.2em;color:color-mix(in srgb,var(--ink) 55%,transparent)}
+.home-shortcuts>header i{height:1px;background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.home-shortcuts>header span{font:italic 7px Georgia,serif}
+
+/* Classic phone icon pages: all icons return to one normal size. */
+.app-page{padding:24px 26px 164px!important;overflow-y:auto!important}
+.app-page .page-kicker{padding:2px 4px 14px!important;margin-bottom:8px!important;border-bottom:1px solid color-mix(in srgb,var(--accent) 10%,transparent)!important}
+.classic-app-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-auto-rows:auto!important;gap:19px 9px!important;padding:6px 0 18px!important;align-items:start!important}
+.classic-app-grid .tumblr-app,
+.app-page .phone-app-grid .tumblr-app{grid-column:auto!important;grid-row:auto!important;width:100%!important;height:auto!important;min-height:82px!important;padding:0!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;gap:7px!important;text-align:center!important;overflow:visible!important}
+.classic-app-grid .app-visual,
+.app-page .phone-app-grid .app-visual{width:58px!important;height:58px!important;min-height:58px!important;border-radius:17px!important;display:grid!important;place-items:center!important;background:linear-gradient(145deg,color-mix(in srgb,var(--paper) 96%,white),color-mix(in srgb,var(--accent2) 16%,var(--paper)))!important;border:1px solid color-mix(in srgb,var(--accent) 12%,transparent)!important;box-shadow:0 8px 17px color-mix(in srgb,var(--ink) 7%,transparent),inset 0 0 0 1px rgba(255,255,255,.55)!important}
+.classic-app-grid .default-star,
+.app-page .phone-app-grid .default-star{font-size:23px!important;color:var(--accent)!important}
+.classic-app-grid .app-copy,
+.app-page .phone-app-grid .app-copy{display:block!important;width:100%!important}
+.classic-app-grid .app-copy b,
+.app-page .phone-app-grid .app-copy b{font:11px/1.15 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif!important;font-weight:500!important;color:var(--ink)!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.classic-app-grid .app-copy small,
+.app-page .phone-app-grid .app-copy small{display:none!important}
+.classic-app-grid .has-custom-icon .app-visual img{width:100%!important;height:100%!important;object-fit:cover!important;border-radius:16px!important}
+.home-favorite-grid{gap:13px 8px!important;padding:0!important}
+.home-favorite-grid .tumblr-app{min-height:74px!important}
+.home-favorite-grid .app-visual{width:50px!important;height:50px!important;min-height:50px!important;border-radius:15px!important}
+.home-favorite-grid .default-star{font-size:19px!important}
+.folder-visual{display:grid!important;grid-template-columns:repeat(2,1fr)!important;grid-template-rows:repeat(2,1fr)!important;gap:3px!important;padding:8px!important}
+.folder-visual img,.folder-visual i{width:17px!important;height:17px!important;border-radius:5px!important;display:grid!important;place-items:center!important;object-fit:cover!important;font-size:9px!important;background:color-mix(in srgb,var(--accent) 8%,white)!important;color:var(--accent)!important}
+
+/* Widgets can be moved and reordered; edit mode makes the state unmistakable. */
+.home-edit .home-widget,.home-edit .tumblr-app{animation:none!important;outline:1px dashed color-mix(in srgb,var(--accent) 42%,transparent)!important;outline-offset:4px!important}
+.ew-dragging .home-page{cursor:grabbing!important}
+.is-drag-source{opacity:.22!important;transform:scale(.94)!important}
+.drag-ghost{width:auto!important;min-width:74px!important;max-width:190px!important;opacity:.97!important;transform:translate(-50%,-50%) scale(1.14) rotate(-2deg)!important;filter:drop-shadow(0 22px 26px color-mix(in srgb,var(--ink) 24%,transparent))!important;outline:2px solid color-mix(in srgb,var(--accent) 52%,white)!important;outline-offset:5px!important;border-radius:22px!important}
+.widget-drag-ghost{width:170px!important;min-height:86px!important}
+.is-drop-target{transform:scale(1.07)!important;outline:2px solid var(--accent)!important;outline-offset:5px!important;background:color-mix(in srgb,var(--accent2) 22%,var(--paper))!important;transition:transform .1s ease,outline .1s ease!important}
+.is-folder-target{transform:scale(1.09)!important;outline:3px solid var(--accent)!important;outline-offset:6px!important;box-shadow:0 0 0 8px color-mix(in srgb,var(--accent) 10%,transparent)!important}
+.ew-dragging .home-page::after{content:"拖到 App 上建立文件夹 · 拖到空白处移动";position:fixed;z-index:99998;left:50%;bottom:calc(158px + env(safe-area-inset-bottom));transform:translateX(-50%);padding:8px 13px;border-radius:999px;background:color-mix(in srgb,var(--ink) 88%,transparent);color:var(--paper);font-size:9px;white-space:nowrap;box-shadow:0 9px 22px rgba(0,0,0,.16);pointer-events:none}
+
+/* Cleaner page chrome. */
+.page-add-widget{width:34px!important;height:34px!important;border-radius:50%!important;background:color-mix(in srgb,var(--paper) 74%,white)!important;border:1px solid color-mix(in srgb,var(--accent) 15%,transparent)!important;box-shadow:none!important;color:var(--accent)!important}
+.home-page-dots{padding:7px 10px!important;gap:6px!important;box-shadow:none!important;border:1px solid color-mix(in srgb,var(--accent) 9%,transparent)!important}
+.phone-dock{left:25px!important;right:25px!important;border-radius:28px!important;background:color-mix(in srgb,var(--paper) 96%,white)!important;border:1px solid color-mix(in srgb,var(--accent) 9%,transparent)!important;box-shadow:0 13px 38px color-mix(in srgb,var(--ink) 8%,transparent)!important}
+
+/* Lock / welcome / passcode. No generated imagery — pure CSS. */
+.lockscreen{padding:0!important;overflow:hidden!important;background:
+  radial-gradient(circle at 88% 16%,color-mix(in srgb,var(--accent2) 24%,transparent),transparent 27%),
+  linear-gradient(165deg,color-mix(in srgb,var(--paper) 95%,white),color-mix(in srgb,var(--accent2) 18%,var(--paper)))!important;color:var(--ink)!important;text-align:left!important;display:block!important}
+.lockscreen:before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,transparent 7.5%,color-mix(in srgb,var(--accent) 8%,transparent) 7.6%,transparent 7.7% 92.3%,color-mix(in srgb,var(--accent) 8%,transparent) 92.4%,transparent 92.5%),repeating-linear-gradient(0deg,transparent 0 62px,color-mix(in srgb,var(--ink) 3%,transparent) 62px 63px)}
+.lockscreen:after{content:"";position:absolute;width:360px;height:360px;border:1px solid color-mix(in srgb,var(--accent) 10%,transparent);border-radius:50%;right:-190px;top:120px;box-shadow:0 0 0 52px color-mix(in srgb,var(--accent) 3%,transparent)}
+.lock-editorial{position:absolute;z-index:2;left:30px;right:30px;top:max(62px,calc(env(safe-area-inset-top) + 24px));display:grid;grid-template-columns:auto 1fr;gap:13px;align-items:center}
+.lock-editorial small{font:7px Georgia,serif;letter-spacing:.2em;color:var(--muted)}
+.lock-editorial i{height:1px;background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.welcome-date{position:absolute;z-index:2;left:31px;top:126px;font:8px Georgia,serif;letter-spacing:.18em;color:var(--accent)}
+.welcome-time{position:absolute;z-index:2;left:28px;top:145px;font:italic 74px/.9 Georgia,serif;letter-spacing:-.06em;color:var(--ink)}
+.welcome-wordmark{position:absolute;z-index:2;left:31px;right:31px;top:270px;border-top:1px solid color-mix(in srgb,var(--accent) 12%,transparent);padding-top:14px}
+.welcome-wordmark small{font:7px Georgia,serif;letter-spacing:.18em;color:var(--accent)}
+.welcome-wordmark h1{margin:2px 0 0;font:italic clamp(52px,15vw,76px)/.9 Georgia,serif;letter-spacing:-.06em}
+.welcome-wordmark p{margin:9px 0 0;font:14px Georgia,serif;color:var(--accent);letter-spacing:.2em}
+.welcome-glance{position:absolute;z-index:2;left:31px;right:31px;top:445px;display:grid;grid-template-columns:1fr 1fr;border-top:1px solid color-mix(in srgb,var(--accent) 10%,transparent);border-bottom:1px solid color-mix(in srgb,var(--accent) 10%,transparent)}
+.welcome-glance>span{padding:13px 8px;display:grid;grid-template-columns:auto 1fr;grid-template-areas:'s s' 'b e';align-items:end;gap:3px 8px}
+.welcome-glance>span+span{border-left:1px solid color-mix(in srgb,var(--accent) 9%,transparent)}
+.welcome-glance small{grid-area:s;font:7px Georgia,serif;letter-spacing:.18em;color:var(--muted)}
+.welcome-glance b{grid-area:b;font:italic 27px Georgia,serif}
+.welcome-glance em{grid-area:e;font:italic 8px Georgia,serif;color:var(--muted);justify-self:start;margin-bottom:4px}
+.welcome-quote{position:absolute;z-index:2;left:31px;right:31px;top:548px;margin:0;text-align:right;font:italic 11px Georgia,serif;color:var(--muted)}
+.unlock-btn{position:absolute!important;z-index:3;left:50%!important;bottom:calc(38px + env(safe-area-inset-bottom))!important;transform:translateX(-50%)!important;margin:0!important;padding:10px 22px!important;display:grid!important;justify-items:center!important;gap:7px!important;color:var(--muted)!important;background:none!important}
+.unlock-btn i{width:34px;height:4px;border-radius:999px;background:var(--accent);opacity:.7;animation:ewLift 1.5s ease-in-out infinite}
+.unlock-btn span{font:8px Georgia,serif;letter-spacing:.16em}
+@keyframes ewLift{0%,100%{transform:translateY(2px);opacity:.45}50%{transform:translateY(-4px);opacity:.9}}
+
+.passcode-time{position:absolute;z-index:2;top:126px;left:50%;transform:translateX(-50%);font:italic 26px Georgia,serif;color:var(--muted)}
+.passcode-panel{position:absolute;z-index:3;left:30px;right:30px;top:190px;text-align:center}
+.passcode-panel>small{font:7px Georgia,serif;letter-spacing:.22em;color:var(--accent)}
+.passcode-panel h2{font:italic 27px Georgia,serif;margin:8px 0 20px;font-weight:400}
+.passcode-dots{height:25px;display:flex;justify-content:center;align-items:center;gap:17px;margin-bottom:27px}
+.passcode-dots span{width:10px;height:10px;border-radius:50%;border:1px solid color-mix(in srgb,var(--accent) 48%,transparent);background:transparent;transition:transform .12s ease,background .12s ease}
+.passcode-dots span.filled{background:var(--accent);transform:scale(1.15)}
+.passcode-keypad{width:min(292px,84vw);margin:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:12px 18px}
+.passcode-keypad button{height:62px;border-radius:50%;background:color-mix(in srgb,var(--paper) 72%,white);border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);box-shadow:0 7px 18px color-mix(in srgb,var(--ink) 5%,transparent);font:italic 22px Georgia,serif}
+.passcode-keypad .passcode-blank{visibility:hidden}
+.passcode-back{margin-top:20px;background:none;color:var(--muted);font:10px Georgia,serif}
+.passcode-panel.wrong{animation:ewWrong .32s ease}
+@keyframes ewWrong{0%,100%{transform:translateX(0)}25%{transform:translateX(-9px)}50%{transform:translateX(8px)}75%{transform:translateX(-5px)}}
+
+.profile-lock-card{margin-top:16px;padding:16px 17px;border:1px solid color-mix(in srgb,var(--accent) 12%,transparent);background:color-mix(in srgb,var(--paper) 92%,white);border-radius:20px;display:flex;align-items:center;justify-content:space-between;gap:15px}
+.profile-lock-card>div{display:grid;gap:3px}.profile-lock-card small{font:7px Georgia,serif;letter-spacing:.18em;color:var(--accent)}.profile-lock-card b{font:italic 18px Georgia,serif;font-weight:400}.profile-lock-card span{font-size:9px;color:var(--muted)}.profile-lock-card button{white-space:nowrap;padding:8px 11px;border-radius:999px;background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--accent);font-size:9px}
+
+@media(max-width:390px){
+  .today-page{padding-left:22px!important;padding-right:22px!important}.app-page{padding-left:22px!important;padding-right:22px!important}
+  .classic-app-grid{gap:16px 6px!important}.classic-app-grid .app-visual{width:54px!important;height:54px!important;min-height:54px!important}
+  .welcome-glance{top:430px}.welcome-quote{top:528px}.welcome-wordmark{top:258px}.welcome-time{font-size:67px}
+}
+
+/* v2.6.1 — iOS bottom canvas fix
+   Keep the visual phone canvas behind the iOS home-indicator safe area instead of
+   allowing Safari/PWA to expose the document's default white background. */
+html,body{
+  margin:0!important;
+  padding:0!important;
+  width:100%!important;
+  min-width:100%!important;
+  overflow:hidden!important;
+  background:#efd3dc!important;
+}
+body,#app,.shell{
+  position:fixed!important;
+  inset:0!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:hidden!important;
+}
+#app,.shell,.phone{background:var(--wallpaper,#efd3dc)!important;background-size:cover!important;background-position:center!important}
+.phone{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  overflow:hidden!important;
+}
+/* Dock stays above the home indicator while the wallpaper continues behind it. */
+.swipe-home>.phone-dock{bottom:calc(12px + env(safe-area-inset-bottom))!important}
+.home-page-dots{bottom:calc(88px + env(safe-area-inset-bottom))!important}

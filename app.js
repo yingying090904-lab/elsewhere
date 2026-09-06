@@ -2,7 +2,7 @@ const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const KEY = 'elsewhere-state';
 const LEGACY_KEYS = ['elsewhere-v242-state','elsewhere-v24-state','elsewhere-v23-state','elsewhere-v22-state','elsewhere-v21-state','elsewhere-v20-state'];
-const VERSION = '2.5.4-crisp-smooth-home';
+const VERSION = '2.6.0-lockscreen-free-home';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -68,7 +68,7 @@ const defaultState = {
   countdowns:[{id:uid(),title:'一个值得期待的日子',date:new Date(Date.now()+14*86400000).toISOString().slice(0,10)}],
   wishlist:[{id:uid(),text:'买一本喜欢很久的书',done:false}],
   bookmarks:[{id:uid(),title:'Elsewhere notes',url:'https://example.com'}],
-  settings:{assistantName:'Thomas',useAI:true,thomasProfile:{warmth:72,sass:28,initiative:58,formality:30,verbosity:42,address:'Ann',base:'克制、体贴、聪明，有一点英式管家的从容，但不是客服。',learn:true},thomasLearned:[]}
+  settings:{assistantName:'Thomas',useAI:true,passcode:'0000',thomasProfile:{warmth:72,sass:28,initiative:58,formality:30,verbosity:42,address:'Ann',base:'克制、体贴、聪明，有一点英式管家的从容，但不是客服。',learn:true},thomasLearned:[]}
 };
 
 function load(){
@@ -81,7 +81,7 @@ function load(){
     const saved=fresh||legacy;
     const out=saved?Object.assign(clone(defaultState),saved):clone(defaultState);
     if(legacy&&!fresh){ out.theme='blush'; out.custom=Object.assign(clone(defaultState.custom),out.custom||{}, {accent:'',paper:'',ink:''}); }
-    out.settings ||= clone(defaultState.settings);
+    out.settings=Object.assign(clone(defaultState.settings),out.settings||{});
     out.settings.thomasProfile=Object.assign(clone(defaultState.settings.thomasProfile),out.settings.thomasProfile||{});
     out.settings.thomasLearned ||= [];
     out.custom=Object.assign(clone(defaultState.custom),out.custom||{});
@@ -101,7 +101,8 @@ function load(){
     return out;
   }catch{return clone(defaultState)}
 }
-let S=load(), current='home', currentArg=null, timer=null, todoTab='todo', homePage=0, homeEdit=false, dragState=null, shadeOpen=false, calendarOffset=0;
+let S=load(), current='home', currentArg=null, timer=null, todoTab='todo', homePage=0, homeEdit=false, dragState=null, shadeOpen=false, calendarOffset=0, lockStage='welcome', passcodeBuffer='';
+S.locked=true;
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){console.warn('Elsewhere save failed',e);} }
 window.addEventListener('pagehide',save); window.addEventListener('beforeunload',save); document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
 function ch(id){ return S.characters.find(x=>x.id===id); }
@@ -152,11 +153,29 @@ function notificationShade(){
 }
 function lockScreen(){
   const d=new Date(), due=S.todos.filter(x=>!x.done).length;
-  return `<section class="lockscreen phone-lock"><div class="lock-widget-pages" id="lockPages">
-    <section class="lock-widget-page lock-main"><div class="locktop"><span>Elsewhere</span><span>5G</span></div><div class="locktime">${fmtTime()}</div><div class="lockdate">${d.toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})}</div><p class="lock-quote">${esc(S.custom.quote||'same sky, different dreams.')}</p></section>
-    <section class="lock-widget-page lock-glance"><small>TODAY</small><h2>${due?`${due} things left`:'all clear'}</h2><div class="lock-mini-card"><b>${esc(S.weather.temp)}°</b><span>${esc(S.weather.city)} · ${esc(S.weather.desc)}</span></div><div class="lock-mini-card"><b>书房</b><span>${Math.floor(S.study.seconds/60)} min focus · ${S.study.running?'running':'ready'}</span></div></section>
-    <section class="lock-widget-page lock-notes"><small>RECENT</small>${S.notifications.slice(0,3).map(n=>`<button data-open="thomas"><b>${esc(n.title||'Elsewhere')}</b><span>${esc((n.text||'').slice(0,68))}</span></button>`).join('')||'<p>quiet for now.</p>'}</section>
-  </div><div class="lock-dots"><i class="active"></i><i></i><i></i></div><button class="unlock-btn" data-unlock>向上滑动解锁</button>${notificationShade()}</section>`;
+  const dots='<span></span>'.repeat(4);
+  if(lockStage==='passcode'){
+    return `<section class="lockscreen phone-lock passcode-lock">
+      <div class="lock-editorial"><small>ELSEWHERE · PRIVATE PHONE</small><i></i></div>
+      <div class="passcode-time">${fmtTime()}</div>
+      <div class="passcode-panel">
+        <small>ENTER PASSCODE</small><h2>欢迎回来，${esc(S.owner.name||'Ann')}</h2>
+        <div class="passcode-dots" data-passcode-dots>${dots}</div>
+        <div class="passcode-keypad">
+          ${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-passcode-key="${n}">${n}</button>`).join('')}
+          <button class="passcode-blank" aria-hidden="true"></button><button data-passcode-key="0">0</button><button data-passcode-delete>⌫</button>
+        </div>
+        <button class="passcode-back" data-passcode-back>‹ 返回</button>
+      </div>${notificationShade()}</section>`;
+  }
+  return `<section class="lockscreen phone-lock welcome-lock">
+    <div class="lock-editorial"><small>ELSEWHERE · PRIVATE PHONE</small><i></i></div>
+    <div class="welcome-date">${d.toLocaleDateString('en-GB',{weekday:'long',day:'2-digit',month:'long'}).toUpperCase()}</div>
+    <div class="welcome-time">${fmtTime()}</div>
+    <div class="welcome-wordmark"><small>${esc(S.custom.tagline||'A SMALL PHONE, A BIGGER YOU')}</small><h1>${esc(S.custom.title||'Elsewhere')}</h1><p>${esc(S.custom.subtitle||'此刻以外')}</p></div>
+    <div class="welcome-glance"><span><small>TODAY</small><b>${due}</b><em>things left</em></span><span><small>WEATHER</small><b>${esc(S.weather.temp)}°</b><em>${esc(S.weather.city)}</em></span></div>
+    <p class="welcome-quote">${esc(S.custom.quote||'same sky, different dreams.')}</p>
+    <button class="unlock-btn" data-passcode-open><i></i><span>向上滑动</span></button>${notificationShade()}</section>`;
 }
 function screen(){
   const body=current==='home'?home():`<section class="view app-view">${view(current,currentArg)}<button class="home-handle" data-home aria-label="返回主页"><span></span></button></section>`;
@@ -268,11 +287,12 @@ function htmlToElement(html){const t=document.createElement('template');t.innerH
 function home(){
   const now=new Date(), day=now.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
   const layout=ensureHomeLayout().filter(k=>String(k).startsWith('folder:')||!S.custom.hiddenApps.includes(k));
-  const pages=[]; for(let i=0;i<layout.length;i+=12) pages.push(layout.slice(i,i+12)); if(!pages.length)pages.push([]);
+  const favorites=layout.slice(0,4), rest=layout.slice(4);
+  const pages=[]; for(let i=0;i<rest.length;i+=12) pages.push(rest.slice(i,i+12)); if(!pages.length)pages.push([]);
   const pageCount=Math.max(pages.length, Math.max(1,...(S.custom.homeWidgets||[]).map(w=>Number(w.page)||0)));
   while(pages.length<pageCount)pages.push([]);
   const widgetZone=pi=>`<section class="home-widget-grid page-widget-zone" data-widget-zone="${pi}">${homeWidgetsHtml(pi)}</section>`;
-  const appsPage=(items,label,pi)=>`<section class="home-page app-page" data-app-page="${pi}" ${pageWallpaperStyle(pi)}><div class="page-kicker"><span>${label}</span><div class="page-tools"><button class="page-add-widget" data-widget-library-page="${pi}" aria-label="Add Widget">＋</button>${homeEdit?'<button data-edit-done>完成</button>':''}</div></div>${widgetZone(pi)}<div class="phone-app-grid">${items.map(homeEntry).join('')}</div>${!items.length&&!pageWidgets(pi).length?'<div class="empty-home-page">这一页还是空的。</div>':''}</section>`;
+  const appsPage=(items,label,pi)=>`<section class="home-page app-page" data-app-page="${pi}" ${pageWallpaperStyle(pi)}><div class="page-kicker"><span>${label}</span><div class="page-tools"><button class="page-add-widget" data-widget-library-page="${pi}" aria-label="Add Widget">＋</button>${homeEdit?'<button data-edit-done>完成</button>':''}</div></div>${widgetZone(pi)}<div class="phone-app-grid classic-app-grid">${items.map(homeEntry).join('')}</div>${!items.length&&!pageWidgets(pi).length?'<div class="empty-home-page">拖一个 App 或 Widget 到这里。</div>':''}</section>`;
   return `<section class="home swipe-home ${homeEdit?'home-edit':''}">
     <div class="home-pages" id="homePages">
       <section class="home-page today-page" data-app-page="0" ${pageWallpaperStyle(0)}>
@@ -280,8 +300,9 @@ function home(){
         <header class="tumblr-brand"><small>${esc(S.custom.tagline||'A SMALL PHONE, A BIGGER YOU')}</small><h1>${esc(S.custom.title)}</h1><div><p>${esc(S.custom.subtitle)}</p><em>${esc(S.custom.quote)}</em></div></header>
         ${S.custom.showHomeAvatar?`<button class="home-profile-chip" data-open="profile">${S.owner.avatar?`<img src="${esc(S.owner.avatar)}" alt="">`:`<span>${esc((S.owner.name||'E')[0])}</span>`}<div><b>${esc(S.owner.name||'Elsewhere user')}</b><small>@${esc(S.owner.handle||'elsewhere')}</small></div></button>`:''}
         ${widgetZone(0)}
+        <section class="home-shortcuts"><header><small>DAILY SHORTCUTS</small><i></i><span>${homeEdit?'drag to arrange':'hold to edit'}</span></header><div class="phone-app-grid classic-app-grid home-favorite-grid">${favorites.map(homeEntry).join('')}</div></section>
       </section>
-      ${pages.map((p,i)=>appsPage(p,`home · ${String(i+1).padStart(2,'0')}`,i+1)).join('')}
+      ${pages.map((p,i)=>appsPage(p,`home · ${String(i+2).padStart(2,'0')}`,i+1)).join('')}
     </div>
     <div class="home-page-dots" aria-label="主页分页">${[null,...pages].map((_,i)=>`<button data-home-dot="${i}" class="${i===homePage?'active':''}" aria-label="第 ${i+1} 页"></button>`).join('')}</div>
     ${homeEdit?`<div class="home-edit-bar"><button data-widget-library-open>＋ Widget</button><button data-folder-new>＋ 文件夹</button><button data-page-wallpaper>壁纸</button><button data-edit-done>完成</button></div>`:''}
@@ -373,7 +394,7 @@ function socialView(){
 }
 function profileView(){
   const me={id:S.social.userId,...S.owner}; const following=(S.social.following||[]).length;
-  return `${header('我','profile','<button class="text-action" data-edit-profile>编辑</button>')}<main class="page profile-page">${profileCard(me,`<div class="profile-stats"><span><b>${following}</b><small>following</small></span><span><b>${(S.social.feed||[]).filter(p=>p.author===S.social.userId).length}</b><small>posts</small></span><span><b>${S.characters.length}</b><small>characters</small></span></div>`)}<div class="profile-actions"><button data-open="social">去社交页</button><button data-profile-avatar>更换头像</button><button data-profile-banner>更换封面</button></div><section class="profile-paper"><small>ABOUT THIS PHONE</small><p>${esc(S.custom.quote||'')}</p><div>${(S.owner.tags||[]).map(t=>`<span>${esc(t)}</span>`).join('')}</div></section></main>`;
+  return `${header('我','profile','<button class="text-action" data-edit-profile>编辑</button>')}<main class="page profile-page">${profileCard(me,`<div class="profile-stats"><span><b>${following}</b><small>following</small></span><span><b>${(S.social.feed||[]).filter(p=>p.author===S.social.userId).length}</b><small>posts</small></span><span><b>${S.characters.length}</b><small>characters</small></span></div>`)}<div class="profile-actions"><button data-open="social">去社交页</button><button data-profile-avatar>更换头像</button><button data-profile-banner>更换封面</button></div><section class="profile-paper"><small>ABOUT THIS PHONE</small><p>${esc(S.custom.quote||'')}</p><div>${(S.owner.tags||[]).map(t=>`<span>${esc(t)}</span>`).join('')}</div></section><section class="profile-lock-card"><div><small>PHONE LOCK</small><b>密码锁</b><span>启动 Elsewhere 时先经过锁屏与密码。</span></div><button data-change-passcode>修改密码</button></section></main>`;
 }
 function playerView(id){
   const p=(S.social.profiles||[]).find(x=>x.id===id); if(!p)return socialView(); const following=(S.social.following||[]).includes(id);
@@ -611,13 +632,28 @@ function openFolder(id){
   const f=folderById(id); if(!f)return;
   const wrap=document.createElement('div');wrap.className='ew-modal-wrap folder-wrap';
   const contents=(f.apps||[]).map(k=>{const a=apps.find(x=>x[0]===k);return a?`<div class="folder-item">${icon(...a)}${homeEdit?`<button class="folder-remove" data-folder-remove="${k}">移出</button>`:''}</div>`:''}).join('');
-  wrap.innerHTML=`<div class="ew-modal-scrim" data-folder-close></div><section class="ew-dialog folder-dialog"><header><div><small>FOLDER</small><h3>${esc(f.name)}</h3></div>${homeEdit?'<button data-folder-rename>改名</button>':''}</header><div class="folder-grid">${contents||'<p class="quiet-copy">把 App 拖到这里。</p>'}</div><div class="ew-dialog-actions"><button class="ew-dialog-primary" data-folder-close>完成</button></div></section>`;
+  wrap.innerHTML=`<div class="ew-modal-scrim" data-folder-close></div><section class="ew-dialog folder-dialog"><header><div><small>FOLDER</small><h3>${esc(f.name)}</h3></div><button data-folder-rename>改名</button></header><div class="folder-grid">${contents||'<p class="quiet-copy">把 App 拖到这里。</p>'}</div><div class="ew-dialog-actions"><button class="ew-dialog-primary" data-folder-close>完成</button></div></section>`;
   uiLayer().appendChild(wrap);requestAnimationFrame(()=>wrap.classList.add('show'));
   wrap.querySelectorAll('[data-folder-close]').forEach(x=>x.onclick=()=>{wrap.classList.remove('show');setTimeout(()=>wrap.remove(),150)});
   wrap.querySelectorAll('[data-open]').forEach(x=>x.onclick=()=>{wrap.remove();open(x.dataset.open)});
   wrap.querySelectorAll('[data-folder-remove]').forEach(x=>x.onclick=()=>{f.apps=f.apps.filter(k=>k!==x.dataset.folderRemove);S.custom.homeLayout.push(x.dataset.folderRemove);save();wrap.remove();render()});
   wrap.querySelector('[data-folder-rename]')?.addEventListener('click',async()=>{const v=await uiForm({title:'Edit Folder',fields:[{name:'name',label:'文件夹名称',value:f.name}]});if(v?.name){f.name=v.name;save();wrap.remove();render()}});
 }
+function createFolderFromApps(dragKey,targetKey){
+  if(!dragKey||!targetKey||dragKey===targetKey)return null;
+  const a=S.custom.homeLayout||[];
+  const di=a.indexOf(dragKey), ti=a.indexOf(targetKey); if(di<0||ti<0)return null;
+  const insert=Math.min(di,ti), id='f-'+uid();
+  S.custom.homeLayout=a.filter(x=>x!==dragKey&&x!==targetKey);
+  S.custom.homeLayout.splice(Math.min(insert,S.custom.homeLayout.length),0,'folder:'+id);
+  S.custom.folders.push({id,name:'文件夹',apps:[targetKey,dragKey]}); save(); return id;
+}
+function reorderWidget(dragId,targetId){
+  if(!dragId||!targetId||dragId===targetId)return;
+  const a=S.custom.homeWidgets||[], di=a.findIndex(w=>w.id===dragId), ti=a.findIndex(w=>w.id===targetId); if(di<0||ti<0)return;
+  const [w]=a.splice(di,1); const target=a.findIndex(x=>x.id===targetId); w.page=a[target]?.page??w.page; a.splice(Math.max(0,target),0,w); save();
+}
+function clearDragUI(){document.body.classList.remove('ew-dragging');document.querySelectorAll('.is-drag-source,.is-drop-target,.is-folder-target').forEach(x=>x.classList.remove('is-drag-source','is-drop-target','is-folder-target'));}
 async function createHomeFolder(){
   const v=await uiForm({title:'New Folder',subtitle:'在同一张卡里完成。',fields:[{name:'name',label:'文件夹名称',value:'My Folder',placeholder:'文件夹名称'}]}); if(!v?.name)return;
   const id='f-'+uid(); S.custom.folders.push({id,name:v.name,apps:[]}); S.custom.homeLayout.push('folder:'+id); save(); render(); uiToast('文件夹已建立，把 App 拖进去就好');
@@ -626,7 +662,7 @@ function moveLayoutEntry(key,targetKey){
   const a=S.custom.homeLayout; const i=a.indexOf(key),j=a.indexOf(targetKey); if(i<0||j<0||i===j)return; a.splice(i,1); a.splice(j,0,key); save();
 }
 function moveAppToPage(key,page){
-  const a=S.custom.homeLayout; const i=a.indexOf(key); if(i<0)return; a.splice(i,1); const appPage=Math.max(1,page); const insert=Math.min(a.length,(appPage-1)*12+12); a.splice(insert,0,key); save();
+  const a=S.custom.homeLayout; const i=a.indexOf(key); if(i<0)return; a.splice(i,1); const appPage=Math.max(0,page); const insert=appPage===0?0:Math.min(a.length,4+(appPage-1)*12+12); a.splice(insert,0,key); save();
 }
 function addAppToFolder(key,fid){
   const f=folderById(fid); if(!f||f.apps.includes(key))return; S.custom.homeLayout=S.custom.homeLayout.filter(x=>x!==key); f.apps.push(key); save();
@@ -672,9 +708,9 @@ function phoneOSBind(){
       ghost?.remove(); ghost=null;
       if(moved){
         const hit=document.elementFromPoint(e.clientX,e.clientY); const folder=hit?.closest?.('[data-folder-key]'); const target=hit?.closest?.('[data-app-key]'); const page=hit?.closest?.('[data-app-page]');
-        if(folder)addAppToFolder(key,folder.dataset.folderKey); else if(target&&target.dataset.appKey!==key)moveLayoutEntry(key,target.dataset.appKey); else if(page)moveAppToPage(key,Number(page.dataset.appPage));
-        dragState=null; render();
-      } else dragState=null;
+        if(folder)addAppToFolder(key,folder.dataset.folderKey); else if(target&&target.dataset.appKey!==key){const fid=createFolderFromApps(key,target.dataset.appKey);if(fid)uiToast('已合并成文件夹 · 打开后可重命名');} else if(page)moveAppToPage(key,Number(page.dataset.appPage));
+        dragState=null; clearDragUI(); render();
+      } else {dragState=null;clearDragUI();}
     };
     el.onpointerup=finish; el.onpointercancel=finish;
     el.onclick=e=>{clearTimeout(hold);if(homeEdit){e.preventDefault();e.stopPropagation();return}}
@@ -685,18 +721,19 @@ function phoneOSBind(){
     el.onpointerdown=e=>{
       sx=e.clientX;sy=e.clientY;moved=false;
       if(!homeEdit){hold=setTimeout(()=>{homeEdit=true;navigator.vibrate?.(12);render();uiToast('编辑模式')},420);return}
-      dragState={widgetId:id,pointerId:e.pointerId};el.setPointerCapture?.(e.pointerId);e.preventDefault();
+      dragState={widgetId:id,pointerId:e.pointerId};el.setPointerCapture?.(e.pointerId);document.body.classList.add('ew-dragging');el.classList.add('is-drag-source');e.preventDefault();
     };
     el.onpointermove=e=>{
       if(!homeEdit||!dragState||dragState.widgetId!==id)return;
       const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)+Math.abs(dy)<5&&!ghost)return;moved=true;
       if(!ghost){ghost=el.cloneNode(true);ghost.classList.add('drag-ghost','widget-drag-ghost');document.body.appendChild(ghost)}
       ghost.style.left=e.clientX+'px';ghost.style.top=e.clientY+'px';
+      document.querySelectorAll('.is-drop-target,.is-folder-target').forEach(x=>x.classList.remove('is-drop-target','is-folder-target')); const under=document.elementFromPoint(e.clientX,e.clientY); const folderHit=under?.closest?.('[data-folder-key]'); const appHit=under?.closest?.('[data-app-key]'); if(folderHit)folderHit.classList.add('is-folder-target'); else if(appHit&&appHit.dataset.appKey!==key)appHit.classList.add('is-drop-target');
       const hp=$('#homePages');if(hp){const r=hp.getBoundingClientRect();if(e.clientX>r.right-34&&homePage<$$('.home-page').length-1){homePage++;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}else if(e.clientX<r.left+34&&homePage>0){homePage--;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}}
       e.preventDefault();
     };
     const finish=e=>{clearTimeout(hold);if(!homeEdit||!dragState||dragState.widgetId!==id){dragState=null;return}try{if(el.hasPointerCapture?.(e.pointerId))el.releasePointerCapture(e.pointerId)}catch{}ghost?.remove();ghost=null;
-      if(moved){const hit=document.elementFromPoint(e.clientX,e.clientY);const page=hit?.closest?.('[data-app-page]');const w=(S.custom.homeWidgets||[]).find(x=>x.id===id);if(w&&page){w.page=Number(page.dataset.appPage)||0;save()}dragState=null;render()}else{dragState=null;editWidgetSheet(id)}
+      if(moved){const hit=document.elementFromPoint(e.clientX,e.clientY);const target=hit?.closest?.('[data-home-widget-id]');const page=hit?.closest?.('[data-app-page]');const w=(S.custom.homeWidgets||[]).find(x=>x.id===id);if(target&&target.dataset.homeWidgetId!==id){reorderWidget(id,target.dataset.homeWidgetId)}else if(w&&page){w.page=Number(page.dataset.appPage)||0;save()}dragState=null;clearDragUI();render()}else{dragState=null;clearDragUI();editWidgetSheet(id)}
     };
     el.onpointerup=finish;el.onpointercancel=finish;
     el.onclick=e=>{clearTimeout(hold);if(homeEdit){e.preventDefault();e.stopPropagation()}}
@@ -737,7 +774,7 @@ function ensureIOSTouchGestures(){
       }
       // Lock screen / any app: swipe up decisively.
       if(dy<0){
-        if(S.locked){e.preventDefault();S.locked=false;g.done=true;persistRender();return;}
+        if(S.locked){e.preventDefault();lockStage='passcode';passcodeBuffer='';g.done=true;render();return;}
         if(current!=='home'&&g.bottomEdge&&ady>58){
           e.preventDefault();g.done=true;open('home');return;
         }
@@ -770,6 +807,11 @@ function ensureIOSTouchGestures(){
 function updateHomeDots(){
   document.querySelectorAll('.home-page-dots button').forEach((d,i)=>d.classList.toggle('active',i===homePage));
 }
+function updatePasscodeDots(){const el=document.querySelector('[data-passcode-dots]');if(!el)return;[...el.children].forEach((d,i)=>d.classList.toggle('filled',i<passcodeBuffer.length));}
+function checkPasscode(){
+  if(passcodeBuffer===String(S.settings.passcode||'0000')){S.locked=false;lockStage='welcome';passcodeBuffer='';render();return;}
+  const p=document.querySelector('.passcode-panel');p?.classList.add('wrong');setTimeout(()=>p?.classList.remove('wrong'),360);passcodeBuffer='';updatePasscodeDots();
+}
 function bind(){
   document.querySelectorAll('button').forEach(btn=>{
     if(btn.matches('[aria-disabled="true"],:disabled')) btn.classList.add('is-disabled-control');
@@ -781,7 +823,10 @@ function bind(){
   const phoneRoot=$('.phone');
   phoneRoot?.addEventListener('click',e=>{if((window.__elsewhereIgnoreClickUntil||0)>Date.now()){e.preventDefault();e.stopPropagation();return;}const x=e.target.closest?.('[data-open]');if(!x)return;if(homeEdit&&x.closest('.phone-app-grid'))return;e.preventDefault();e.stopPropagation();open(x.dataset.open)},true);
   phoneOSBind();
-  $$('[data-unlock]').forEach(x=>x.onclick=()=>{S.locked=false;persistRender()});
+  $$('[data-passcode-open]').forEach(x=>x.onclick=()=>{lockStage='passcode';passcodeBuffer='';render()});
+  $('[data-passcode-back]')?.addEventListener('click',()=>{lockStage='welcome';passcodeBuffer='';render()});
+  $$('[data-passcode-key]').forEach(x=>x.onclick=()=>{if(passcodeBuffer.length>=4)return;passcodeBuffer+=x.dataset.passcodeKey;updatePasscodeDots();if(passcodeBuffer.length===4)setTimeout(checkPasscode,90)});
+  $('[data-passcode-delete]')?.addEventListener('click',()=>{passcodeBuffer=passcodeBuffer.slice(0,-1);updatePasscodeDots()});
   $$('[data-home]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();open('home')});
   $$('[data-open]').forEach(x=>x.onclick=e=>{e.stopPropagation();if(homeEdit&&x.closest('.phone-app-grid'))return;open(x.dataset.open)});
   const homePages=$('#homePages'); if(homePages){ requestAnimationFrame(()=>{homePages.scrollLeft=homePage*homePages.clientWidth}); let raf=0; homePages.addEventListener('scroll',()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const w=homePages.clientWidth||1;homePage=Math.round(homePages.scrollLeft/w);$$('[data-home-dot]').forEach((d,i)=>d.classList.toggle('active',i===homePage));});},{passive:true}); $$('[data-home-dot]').forEach(d=>d.onclick=()=>{homePage=Number(d.dataset.homeDot)||0;homePages.scrollTo({left:homePage*homePages.clientWidth,behavior:'smooth'});}); }
@@ -882,6 +927,7 @@ function bind(){
   $$('[data-social-notes]').forEach(x=>x.onclick=()=>{const p=(S.social.feed||[]).find(p=>p.id===x.dataset.socialNotes);if(p){p._open=!p._open;render()}});
   $$('[data-social-reply]').forEach(x=>x.onclick=async()=>{const text=await ask('写留言','',{placeholder:'留一句话'});if(!text)return;await socialWrite('/api/social/note',{postId:x.dataset.socialReply,author:S.social.userId,name:S.owner.name,text});await socialSync();render()});
   $('[data-edit-profile]')?.addEventListener('click',editProfile);
+  $('[data-change-passcode]')?.addEventListener('click',async()=>{const v=await uiForm({title:'修改手机密码',subtitle:'这是本机锁屏密码，用来保护你的 Elsewhere。',fields:[{name:'old',label:'当前密码',type:'password',value:''},{name:'next',label:'新密码 · 4 位数字',type:'password',value:''},{name:'confirm',label:'再次输入新密码',type:'password',value:''}]});if(!v)return;if(v.old!==String(S.settings.passcode||'0000')){uiAlert({title:'密码不正确',message:'当前密码没有对上。'});return;}if(!/^\d{4}$/.test(v.next||'')){uiAlert({title:'格式不对',message:'请输入 4 位数字密码。'});return;}if(v.next!==v.confirm){uiAlert({title:'两次密码不同',message:'请重新输入。'});return;}S.settings.passcode=v.next;save();uiToast('手机密码已修改');});
   $('[data-profile-avatar]')?.addEventListener('click',()=>pickProfileImage('avatar'));
   $('[data-profile-banner]')?.addEventListener('click',()=>pickProfileImage('banner'));
   studyTick();

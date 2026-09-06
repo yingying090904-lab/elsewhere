@@ -1,4 +1,4 @@
-const CACHE='elsewhere-v254-crisp-smooth-home';
+const CACHE='elsewhere-v2610-lock-freehome';
 const ASSETS=['/','/index.html','/styles.css','/app.js','/manifest.json','/icon.svg'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE&&k.startsWith('elsewhere-')).map(k=>caches.delete(k))))])));
