@@ -1285,3 +1285,47 @@ body{position:fixed!important;inset:0!important;margin:0!important;overflow:hidd
 .home-page-dots{bottom:calc(112px + env(safe-area-inset-bottom))!important}
 .tumblr-dock.phone-dock{height:68px!important;bottom:calc(17px + env(safe-area-inset-bottom))!important}
 @media (max-height:760px){.home-micro-copy{display:none!important}.today-page .hw-thomas{min-height:126px!important}.home-favorite-grid{max-height:155px!important}.app-icon .app-visual{width:51px!important;height:51px!important;min-width:51px!important}}
+
+
+/* v2.8.1 — static home: reliable taps, no drag/merge gestures */
+.home.home-edit{pointer-events:auto!important}
+.home .home-widget,.home .app-icon,.home .tumblr-app{animation:none!important;outline:none!important;cursor:pointer!important;touch-action:manipulation!important;-webkit-user-select:none;user-select:none}
+.home .home-widget:active,.home .app-icon:active{transform:scale(.985)!important;transition:transform .08s ease!important}
+.drag-ghost,.home-edit-palette,.widget-edit-controls{display:none!important}
+.home-studio-static-wrap .ew-sheet{max-height:min(84dvh,760px);overflow:auto;-webkit-overflow-scrolling:touch}
+.static-home-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0 14px}
+.static-home-actions button{min-height:76px;padding:13px 12px;border-radius:18px;border:1px solid color-mix(in srgb,var(--ink) 10%,transparent);background:color-mix(in srgb,var(--paper) 88%,transparent);color:var(--ink);text-align:left;display:flex;flex-direction:column;justify-content:space-between;gap:5px}
+.static-home-actions b{font-size:12px}.static-home-actions span{font-size:10px;color:var(--muted);line-height:1.35}
+.home-studio-static .widget-manager{margin-top:4px}.home-studio-static .widget-manager-toolbar{position:sticky;top:0;z-index:2;background:color-mix(in srgb,var(--paper) 96%,transparent);padding:8px 0}
+@media(max-width:480px){.static-home-actions{grid-template-columns:1fr}.static-home-actions button{min-height:62px}}
+
+
+/* =========================
+   v2.8.2 — deliberate, silky home dragging
+   Dragging only starts from a visible handle; cards themselves never initiate it.
+   ========================= */
+.home.home-edit .home-plus{display:none!important}
+.home-done{border:0;border-radius:999px;background:var(--ink);color:var(--paper);padding:9px 14px;font-size:12px;box-shadow:0 8px 20px rgba(45,28,35,.16)}
+.home.home-edit .home-page{touch-action:pan-x!important}
+.home.home-edit .home-widget,.home.home-edit .app-icon{pointer-events:auto!important;position:relative!important}
+.home.home-edit .home-widget[data-open],.home.home-edit .app-icon[data-open]{cursor:default!important}
+.home-drag-handle,.widget-drag-handle{position:absolute!important;z-index:14!important;display:grid!important;grid-template-columns:repeat(2,4px)!important;grid-auto-rows:4px!important;gap:3px!important;place-content:center!important;width:34px!important;height:34px!important;border-radius:999px!important;border:1px solid rgba(255,255,255,.88)!important;background:color-mix(in srgb,var(--ink) 78%,transparent)!important;box-shadow:0 7px 18px rgba(45,27,36,.2)!important;touch-action:none!important;-webkit-user-select:none!important;user-select:none!important;cursor:grab!important}
+.home-drag-handle i,.widget-drag-handle i{display:block!important;width:4px!important;height:4px!important;border-radius:50%!important;background:var(--paper)!important;pointer-events:none!important}
+.app-drag-handle{top:-10px!important;right:-8px!important}
+.widget-edit-controls{display:flex!important;align-items:center!important;top:-14px!important;right:-10px!important;gap:6px!important}
+.widget-edit-controls .widget-drag-handle{position:relative!important;inset:auto!important;flex:0 0 34px!important;padding:0!important}
+.home.home-edit .app-icon{overflow:visible!important}
+.home.home-edit .app-icon .app-visual{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent),0 8px 20px rgba(62,36,48,.1)!important}
+.home.home-edit .home-widget{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent),0 12px 30px rgba(62,36,48,.12)!important}
+.ew-dragging,.ew-dragging *{cursor:grabbing!important}
+.ew-dragging .phone-dock,.ew-dragging .home-page-dots{pointer-events:none!important}
+.drag-ghost{position:fixed!important;z-index:99999!important;pointer-events:none!important;margin:0!important;will-change:transform,left,top!important;transition:none!important;opacity:.97!important;filter:none!important}
+.app-drag-ghost{width:78px!important;transform:translate(-50%,-56%) scale(1.08)!important;background:transparent!important;box-shadow:none!important}
+.widget-drag-ghost{width:min(320px,76vw)!important;transform:translate(-50%,-54%) scale(1.025)!important;border-radius:24px!important;box-shadow:0 22px 50px rgba(51,30,40,.25)!important}
+.is-drag-source{opacity:.18!important;transform:scale(.97)!important;transition:opacity .12s ease,transform .12s ease!important}
+.is-drop-target{outline:2px solid var(--accent)!important;outline-offset:7px!important;transform:scale(1.025)!important;transition:transform .12s ease,outline-color .12s ease!important}
+.static-home-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.static-home-actions [data-static-rearrange]{grid-column:1/-1;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 13%,var(--paper)),color-mix(in srgb,var(--paper) 95%,transparent))!important}
+@media(max-width:480px){.static-home-actions{grid-template-columns:repeat(2,minmax(0,1fr))!important}.static-home-actions button{min-height:70px!important}.static-home-actions [data-static-rearrange]{grid-column:1/-1}}
+
+.home.home-edit .widget-edit-controls{display:flex!important}.home.home-edit .home-drag-handle{display:grid!important}.home.home-edit .drag-ghost{display:block!important}

@@ -2,7 +2,7 @@ const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const KEY = 'elsewhere-state';
 const LEGACY_KEYS = ['elsewhere-v242-state','elsewhere-v24-state','elsewhere-v23-state','elsewhere-v22-state','elsewhere-v21-state','elsewhere-v20-state'];
-const VERSION = '2.8.0-home-reset';
+const VERSION = '2.8.2-smooth-drag';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -88,9 +88,20 @@ function load(){
     delete out.custom.desktopEdit; delete out.custom.stickers;
     out.custom.pageWallpapers ||= {}; out.custom.folders ||= []; out.custom.homeLayout ||= []; out.custom.homeWidgets ||= clone(defaultState.custom.homeWidgets); out.custom.homeWidgets=out.custom.homeWidgets.map(w=>Object.assign({page:0,size:'2x1'},w));
     out.custom.homePageCount=Math.max(2,Number(out.custom.homePageCount)||2);
+    // v2.8.1: static launcher. Flatten old folders so every app is visible again.
+    if(out.custom.homeLayoutRevision!=='v281-static'){
+      const folderMap=new Map((out.custom.folders||[]).map(f=>['folder:'+f.id,[...(f.apps||[])]]));
+      const flat=[];
+      for(const entry of (out.custom.homeLayout||[])){
+        if(folderMap.has(entry)) flat.push(...folderMap.get(entry)); else flat.push(entry);
+      }
+      out.custom.homeLayout=[...new Set(flat.filter(x=>!String(x).startsWith('folder:')))];
+      out.custom.folders=[];
+      out.custom.homeLayoutRevision='v281-static';
+    }
     // v2.6.2: rebalance the stock widgets across the first two pages once.
     // Custom widgets keep their page; only the five built-in starter widgets are migrated.
-    if(out.custom.homeLayoutRevision!=='v262'){
+    if(!['v281-static'].includes(out.custom.homeLayoutRevision) && out.custom.homeLayoutRevision!=='v262'){
       const stockPages={
         'hw-clock':{page:0,size:'1x1'},
         'hw-todo':{page:0,size:'1x1'},
@@ -99,7 +110,7 @@ function load(){
         'hw-study':{page:1,size:'2x1'}
       };
       out.custom.homeWidgets.forEach(w=>{const v=stockPages[w.id];if(v){w.page=v.page;w.size=v.size;}});
-      out.custom.homeLayoutRevision='v262';
+      if(out.custom.homeLayoutRevision!=='v281-static') out.custom.homeLayoutRevision='v262';
     }
     if(!fresh){
       const defaults=new Map([['hw-clock','1x1'],['hw-todo','1x1'],['hw-thomas','2x1'],['hw-weather','2x1'],['hw-study','2x1']]);
@@ -236,8 +247,10 @@ function folderIcon(f){
   return `<button class="app-icon tumblr-app folder-icon" data-folder-open="${esc(f.id)}" data-folder-key="${esc(f.id)}"><span class="app-visual folder-visual">${previews||'<i>★</i><i>★</i>'}</span><span class="app-copy"><b>${esc(f.name||'文件夹')}</b><small>${(f.apps||[]).length} apps</small></span></button>`;
 }
 function homeEntry(entry){
-  if(String(entry).startsWith('folder:')){const f=folderById(String(entry).slice(7));return f?folderIcon(f):''}
-  const a=apps.find(x=>x[0]===entry); return a?icon(...a):'';
+  const handle=homeEdit?`<span class="home-drag-handle app-drag-handle" data-app-drag-handle aria-label="拖动 App"><i></i><i></i><i></i><i></i></span>`:'';
+  if(String(entry).startsWith('folder:')){const f=folderById(String(entry).slice(7));if(!f)return '';return folderIcon(f).replace('</button>',`${handle}</button>`)}
+  const a=apps.find(x=>x[0]===entry); if(!a)return '';
+  return icon(...a).replace('</button>',`${handle}</button>`);
 }
 function pageWallpaperStyle(i){const w=S.custom.pageWallpapers?.[i];return w?`style="--page-wallpaper:url('${esc(w)}')"`:''}
 const HOME_WIDGET_TYPES = {
@@ -247,7 +260,7 @@ function homeWidgetHtml(w){
   const due=S.todos.filter(x=>!x.done).length;
   const note=S.notes[0], cd=(S.countdowns||[])[0], mood=(S.moods||[])[0];
   const common=`data-home-widget-id="${esc(w.id)}" data-widget-type="${esc(w.type)}" data-widget-page="${Number(w.page)||0}" data-widget-size="${esc(w.size||'2x1')}"`;
-  const controls=homeEdit?`<div class="widget-edit-controls"><button type="button" data-widget-config="${esc(w.id)}" aria-label="编辑组件">•••</button><button type="button" data-widget-delete="${esc(w.id)}" aria-label="删除组件">×</button></div>`:'';
+  const controls=homeEdit?`<div class="widget-edit-controls"><button type="button" class="widget-drag-handle" data-widget-drag-handle aria-label="拖动组件"><i></i><i></i><i></i><i></i></button><button type="button" data-widget-config="${esc(w.id)}" aria-label="编辑组件">•••</button><button type="button" data-widget-delete="${esc(w.id)}" aria-label="删除组件">×</button></div>`:'';
   const frame=(cls,body,open='')=>`<article class="home-widget ${cls}" ${common} ${open?`data-open="${open}" role="button" tabindex="0"`:''}>${body}${controls}</article>`;
   if(w.type==='clock') return frame('hw-clock',`<small>NOW</small><b>${fmtTime()}</b><span>${new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'})}</span>`);
   if(w.type==='thomas') return frame('hw-thomas',`<small>THOMAS</small><b>${esc(S.settings.assistantName)}</b><span>${esc((S.notifications?.[0]?.text||'I am here.').slice(0,42))}</span>`,'thomas');
@@ -336,6 +349,19 @@ function homeEditPaletteHtml(){
   return `<div class="home-edit-palette"><button data-home-add-page><span>＋</span><b>增加页面</b></button><button data-widget-library-open><span>▦</span><b>添加组件</b></button><button data-home-wallpaper><span>◫</span><b>更换壁纸</b></button><button data-folder-new><span>⊞</span><b>新建文件夹</b></button></div>`;
 }
 
+function homeStudioSheet(page=homePage){
+  const wrap=document.createElement('div'); wrap.className='ew-modal-wrap home-studio-static-wrap';
+  wrap.innerHTML=`<div class="ew-modal-scrim" data-home-studio-close></div><section class="ew-dialog ew-sheet home-studio-static"><div class="sheet-handle"></div><div class="sheet-title"><div><small>HOME SCREEN</small><h3>Customize</h3><p>拖动只从小把手开始，不会误开 App</p></div><button data-home-studio-close>×</button></div><div class="static-home-actions"><button data-static-rearrange><b>整理主页</b><span>进入拖动模式 · App / Widget 都可移动</span></button><button data-static-add-widget><b>＋ 添加 Widget</b><span>选择组件并放到当前页</span></button><button data-static-wallpaper><b>更换壁纸</b><span>当前页或全部主页</span></button><button data-static-add-page><b>增加页面</b><span>新增一个主页</span></button></div>${widgetManagerHtml('all')}</section>`;
+  uiLayer().appendChild(wrap); requestAnimationFrame(()=>wrap.classList.add('show'));
+  const close=()=>{wrap.classList.remove('show');setTimeout(()=>wrap.remove(),140)};
+  wrap.querySelectorAll('[data-home-studio-close]').forEach(x=>x.onclick=close);
+  $('[data-static-rearrange]',wrap)?.addEventListener('click',()=>{close();setTimeout(()=>{homeEdit=true;render();uiToast('整理模式：按住小把手拖动，点完成退出')},150)});
+  $('[data-static-add-widget]',wrap)?.addEventListener('click',()=>widgetLibrarySheet(page));
+  $('[data-static-wallpaper]',wrap)?.addEventListener('click',()=>wallpaperStudio(page));
+  $('[data-static-add-page]',wrap)?.addEventListener('click',()=>{S.custom.homePageCount=Math.max(2,Number(S.custom.homePageCount)||2)+1;save();close();render();uiToast('已增加一个主页')});
+  bindWidgetControls(wrap);
+}
+
 function htmlToElement(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild}
 
 function home(){
@@ -349,21 +375,21 @@ function home(){
   while(pages.length<totalPages-1) pages.push([]);
   const widgetZone=pi=>`<section class="home-widget-grid page-widget-zone" data-widget-zone="${pi}">${homeWidgetsHtml(pi)}</section>`;
   const appGrid=(items,extra='')=>`<div class="phone-app-grid classic-app-grid ${extra}">${items.map(homeEntry).join('')}</div>`;
-  const editTop=homeEdit?`<button class="home-edit-done" data-edit-done>完成</button>`:'';
+  const editTop=homeEdit?`<button class="home-done" data-home-edit-done>完成</button>`:'';
   const pageShell=(pi,inner)=>`<section class="home-page ${pi===0?'today-page':'app-page'}" data-app-page="${pi}" ${pageWallpaperStyle(pi)}>${inner}</section>`;
   const first=pageShell(0,`
     <div class="mini-home-head"><div><small>${day}</small><b>Elsewhere</b></div><div class="mini-home-actions"><span>@${esc(S.owner.handle||'ann')}</span><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${editTop}</div></div>
     <div class="home-micro-copy"><span>${esc(S.custom.subtitle||'此刻以外')}</span><em>${esc(S.custom.quote||'same sky, different dreams.')}</em></div>
     ${widgetZone(0)}
-    <div class="launcher-rule"><small>HOME 01</small><span>${homeEdit?'拖动以排列':'长按进入编辑'}</span></div>
+    <div class="launcher-rule"><small>HOME 01</small><span>点 ＋ 调整主页</span></div>
     ${appGrid(firstApps,'home-favorite-grid')}`);
   const others=pages.map((items,i)=>{const pi=i+1;return pageShell(pi,`
-    <div class="mini-home-head"><div><small>HOME ${String(pi+1).padStart(2,'0')}</small><b>${pi===1?'Daily room':'Elsewhere'}</b></div><div class="mini-home-actions"><span>${pageWidgets(pi).length} widgets</span><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${homeEdit?'<button class="home-edit-done" data-edit-done>完成</button>':''}</div></div>
+    <div class="mini-home-head"><div><small>HOME ${String(pi+1).padStart(2,'0')}</small><b>${pi===1?'Daily room':'Elsewhere'}</b></div><div class="mini-home-actions"><span>${pageWidgets(pi).length} widgets</span><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${editTop}</div></div>
     ${widgetZone(pi)}
-    <div class="launcher-rule"><small>APPS</small><span>${homeEdit?'拖到图标中央可建文件夹':'swipe · tap · stay awhile'}</span></div>
+    <div class="launcher-rule"><small>APPS</small><span>swipe · tap · stay awhile</span></div>
     ${appGrid(items)}
     ${!items.length&&!pageWidgets(pi).length?'<div class="empty-home-page">这一页还是空的。进入编辑后可以添加 Widget 或把 App 拖过来。</div>':''}`)}).join('');
-  return `<section class="home swipe-home ${homeEdit?'home-edit':''}"><div class="home-pages" id="homePages">${first}${others}</div><div class="home-page-dots" aria-label="主页分页">${Array.from({length:totalPages},(_,i)=>`<button data-home-dot="${i}" class="${i===homePage?'active':''}" aria-label="第 ${i+1} 页"></button>`).join('')}</div>${homeEdit?homeEditPaletteHtml():''}<nav class="tumblr-dock text-dock phone-dock"><button data-open="messages">消息</button><button data-open="thomas">Thomas</button><button data-open="social">社交</button><button data-open="profile">我</button></nav></section>`;
+  return `<section class="home swipe-home ${homeEdit?'home-edit':''}"><div class="home-pages" id="homePages">${first}${others}</div><div class="home-page-dots" aria-label="主页分页">${Array.from({length:totalPages},(_,i)=>`<button data-home-dot="${i}" class="${i===homePage?'active':''}" aria-label="第 ${i+1} 页"></button>`).join('')}</div><nav class="tumblr-dock text-dock phone-dock"><button data-open="messages">消息</button><button data-open="thomas">Thomas</button><button data-open="social">社交</button><button data-open="profile">我</button></nav></section>`;
 }
 function orderedApps(){const order=S.custom?.appOrder||[];return [...apps].sort((a,b)=>{const ai=order.indexOf(a[0]),bi=order.indexOf(b[0]);return (ai<0?999:ai)-(bi<0?999:bi)});}
 function view(k,arg){
@@ -730,84 +756,104 @@ function addAppToFolder(key,fid){
 }
 function phoneOSBind(){
   const phone=$('.phone'); if(!phone)return;
-  $$('[data-folder-open]').forEach(x=>x.onclick=e=>{e.stopPropagation();openFolder(x.dataset.folderOpen)});
-  $$('[data-edit-done]').forEach(x=>x.onclick=()=>{homeEdit=false;clearDragUI();render()});
-  $$('[data-home-edit-open]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();homeEdit=true;render();uiToast('编辑模式：拖动 App / Widget，重叠 App 可建立文件夹')});
-  $('[data-home-add-page]')?.addEventListener('click',()=>{S.custom.homePageCount=Math.max(2,Number(S.custom.homePageCount)||2)+1;homePage=S.custom.homePageCount-1;save();render();uiToast('已增加一个主页')});
-  $('[data-home-wallpaper]')?.addEventListener('click',()=>wallpaperStudio(homePage));
-  $('[data-folder-new]')?.addEventListener('click',createHomeFolder);
+  clearDragUI(); dragState=null;
+  $$('[data-folder-open]').forEach(x=>x.onclick=e=>{e.stopPropagation();if(!homeEdit)openFolder(x.dataset.folderOpen)});
+  $$('[data-home-edit-open]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();if(homeEdit)return;homeStudioSheet(homePage)});
+  $$('[data-home-edit-done]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();homeEdit=false;dragState=null;clearDragUI();save();render();uiToast('主页已整理好')});
   $$('[data-widget-library-page]').forEach(x=>x.onclick=()=>widgetLibrarySheet(Number(x.dataset.widgetLibraryPage)||0));
-  $$('[data-widget-delete]').forEach(x=>{x.onpointerdown=e=>e.stopPropagation();x.onclick=e=>{e.preventDefault();e.stopPropagation();S.custom.homeWidgets=(S.custom.homeWidgets||[]).filter(w=>w.id!==x.dataset.widgetDelete);save();render();uiToast('Widget 已删除')}});
-  $$('[data-widget-config]').forEach(x=>{x.onpointerdown=e=>e.stopPropagation();x.onclick=e=>{e.preventDefault();e.stopPropagation();editWidgetSheet(x.dataset.widgetConfig)}});
   $('[data-page-wallpaper]')?.addEventListener('click',()=>wallpaperStudio(homePage));
   $('[data-shade-close]')?.addEventListener('click',()=>{shadeOpen=false;$('#notificationShade')?.classList.remove('open')});
   $('[data-notif-read]')?.addEventListener('click',()=>{S.notifications.forEach(n=>n.read=true);save();render()});
   $('[data-notif-clear]')?.addEventListener('click',()=>{S.notifications=[];save();render()});
   const lockPages=$('#lockPages'); if(lockPages){lockPages.addEventListener('scroll',()=>{const i=Math.round(lockPages.scrollLeft/(lockPages.clientWidth||1));$$('.lock-dots i').forEach((d,j)=>d.classList.toggle('active',i===j))},{passive:true})}
-  // v2.4.1: gestures are handled globally in ensureIOSTouchGestures().
-  $$('.phone-app-grid [data-app-key]').forEach(el=>{
-    let hold=0, ghost=null, sx=0, sy=0, moved=false;
-    const key=el.dataset.appKey;
-    el.onpointerdown=e=>{
-      sx=e.clientX; sy=e.clientY; moved=false;
-      if(!homeEdit){
-        hold=setTimeout(()=>{homeEdit=true;navigator.vibrate?.(15);render();uiToast('编辑模式：现在可以拖动 App')},430);
-        return;
-      }
-      dragState={key,pointerId:e.pointerId}; document.body.classList.add('ew-dragging');el.classList.add('is-drag-source');
-      el.setPointerCapture?.(e.pointerId);
-      e.preventDefault();
+
+  if(!homeEdit) return;
+
+  // Edit mode is deliberate: normal card/icon taps are disabled. Only the visible
+  // drag handles start a drag, which avoids accidental navigation on iOS.
+  $$('.home-page [data-open], .home-page [data-folder-open]').forEach(el=>{
+    el.onclick=e=>{e.preventDefault();e.stopPropagation()};
+  });
+
+  const pages=$('#homePages');
+  const pageWidth=()=>pages?.clientWidth||1;
+  const setPage=p=>{
+    const count=$$('.home-page',pages).length;
+    homePage=Math.max(0,Math.min(count-1,p));
+    pages?.scrollTo({left:homePage*pageWidth(),behavior:'smooth'});
+    $$('[data-home-dot]').forEach((d,i)=>d.classList.toggle('active',i===homePage));
+  };
+  const pageAtPoint=(x,y)=>{
+    const el=document.elementFromPoint(x,y)?.closest?.('.home-page');
+    return el?Number(el.dataset.appPage)||0:homePage;
+  };
+  const makeGhost=(source,kind)=>{
+    const g=source.cloneNode(true);g.classList.add('drag-ghost',kind==='widget'?'widget-drag-ghost':'app-drag-ghost');
+    g.querySelectorAll('.widget-edit-controls,.home-drag-handle').forEach(n=>n.remove());
+    document.body.appendChild(g);return g;
+  };
+  const nearestTarget=(x,y,selector,source)=>{
+    const nodes=[...document.querySelectorAll(selector)].filter(n=>n!==source && n.getBoundingClientRect().width>0);
+    let best=null,dist=Infinity;
+    for(const n of nodes){const r=n.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;const d=Math.hypot(x-cx,y-cy);if(d<dist){dist=d;best=n}}
+    return best;
+  };
+  const clearTargets=()=>document.querySelectorAll('.is-drop-target').forEach(n=>n.classList.remove('is-drop-target'));
+  const reorderApp=(key,targetKey,targetPage)=>{
+    const layout=ensureHomeLayout();
+    const from=layout.indexOf(key); if(from<0)return;
+    layout.splice(from,1);
+    let at=targetKey?layout.indexOf(targetKey):-1;
+    if(at<0) at=Math.min(layout.length,pageInsertIndex(targetPage));
+    layout.splice(at,0,key); S.custom.homeLayout=layout;
+  };
+
+  const bindDragHandle=(handle,kind)=>{
+    const source=kind==='widget'?handle.closest('.home-widget'):handle.closest('[data-app-key],.folder-icon');
+    if(!source)return;
+    let st=null;
+    handle.onpointerdown=e=>{
+      if(e.pointerType==='mouse'&&e.button!==0)return;
+      e.preventDefault();e.stopPropagation();
+      handle.setPointerCapture?.(e.pointerId);
+      const r=source.getBoundingClientRect();
+      st={id:e.pointerId,sx:e.clientX,sy:e.clientY,x:e.clientX,y:e.clientY,ghost:makeGhost(source,kind),source,target:null,page:Number(source.closest('.home-page')?.dataset.appPage)||0,lastEdge:0};
+      source.classList.add('is-drag-source');document.body.classList.add('ew-dragging');
+      st.ghost.style.left=e.clientX+'px';st.ghost.style.top=e.clientY+'px';
+      navigator.vibrate?.(8);
     };
-    el.onpointermove=e=>{
-      if(!homeEdit||!dragState||dragState.key!==key)return;
-      const dx=e.clientX-sx,dy=e.clientY-sy; if(Math.abs(dx)+Math.abs(dy)<5&&!ghost)return;
-      moved=true;
-      if(!ghost){ghost=el.cloneNode(true);ghost.classList.add('drag-ghost');document.body.appendChild(ghost)}
-      ghost.style.left=e.clientX+'px'; ghost.style.top=e.clientY+'px';
-      document.querySelectorAll('.is-drop-target,.is-folder-target').forEach(x=>x.classList.remove('is-drop-target','is-folder-target')); const under=document.elementFromPoint(e.clientX,e.clientY); const targetApp=under?.closest?.('[data-app-key]'); const targetFolder=under?.closest?.('[data-folder-key]'); if(targetFolder)targetFolder.classList.add('is-folder-target'); else if(targetApp&&targetApp!==el){const rr=targetApp.getBoundingClientRect(),ccx=rr.left+rr.width/2,ccy=rr.top+rr.height/2;targetApp.classList.add(Math.abs(e.clientX-ccx)<rr.width*.26&&Math.abs(e.clientY-ccy)<rr.height*.28?'is-folder-target':'is-drop-target');}
-      const hp=$('#homePages'); if(hp){const r=hp.getBoundingClientRect(); if(e.clientX>r.right-34&&homePage<$$('.home-page').length-1){homePage++;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}else if(e.clientX<r.left+34&&homePage>1){homePage--;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}}
-      e.preventDefault();
+    handle.onpointermove=e=>{
+      if(!st||e.pointerId!==st.id)return;
+      e.preventDefault();e.stopPropagation();st.x=e.clientX;st.y=e.clientY;
+      st.ghost.style.left=e.clientX+'px';st.ghost.style.top=e.clientY+'px';
+      clearTargets();
+      const target=nearestTarget(e.clientX,e.clientY,kind==='widget'?'.home-widget':'[data-app-key],.folder-icon',source);
+      st.target=target;target?.classList.add('is-drop-target');
+      const pr=pages?.getBoundingClientRect();
+      if(pr){const now=performance.now();if(now-st.lastEdge>280){if(e.clientX>pr.right-44&&homePage<$$('.home-page',pages).length-1){st.lastEdge=now;setPage(homePage+1)}else if(e.clientX<pr.left+44&&homePage>0){st.lastEdge=now;setPage(homePage-1)}}}
     };
     const finish=e=>{
-      clearTimeout(hold);
-      if(!homeEdit||!dragState||dragState.key!==key){dragState=null;return}
-      try{if(el.hasPointerCapture?.(e.pointerId))el.releasePointerCapture(e.pointerId)}catch{}
-      ghost?.remove(); ghost=null;
-      if(moved){
-        window.__elsewhereIgnoreClickUntil=Date.now()+450;
-        const hit=document.elementFromPoint(e.clientX,e.clientY); const folder=hit?.closest?.('[data-folder-key]'); const target=hit?.closest?.('[data-app-key]'); const page=hit?.closest?.('[data-app-page]');
-        if(folder)addAppToFolder(key,folder.dataset.folderKey); else if(target&&target.dataset.appKey!==key){const r=target.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;const center=Math.abs(e.clientX-cx)<r.width*.26&&Math.abs(e.clientY-cy)<r.height*.28;if(center){const fid=createFolderFromApps(key,target.dataset.appKey);if(fid)uiToast('已合并成文件夹 · 打开后可重命名');}else{moveLayoutEntry(key,target.dataset.appKey,e.clientX<cx||e.clientY<cy);}} else if(page)moveAppToPage(key,Number(page.dataset.appPage));
-        dragState=null; clearDragUI(); render();
-      } else {dragState=null;clearDragUI();}
+      if(!st||e.pointerId!==st.id)return;
+      e.preventDefault();e.stopPropagation();
+      const targetPage=pageAtPoint(st.x,st.y);
+      if(kind==='widget'){
+        const wid=source.dataset.homeWidgetId,twid=st.target?.dataset.homeWidgetId;
+        const w=(S.custom.homeWidgets||[]).find(x=>x.id===wid);
+        if(w){w.page=targetPage;if(twid&&twid!==wid)reorderWidget(wid,twid)}
+      }else{
+        const key=source.dataset.appKey;
+        if(key){const targetKey=st.target?.dataset.appKey;reorderApp(key,targetKey,targetPage)}
+      }
+      st.ghost.remove();source.classList.remove('is-drag-source');clearTargets();document.body.classList.remove('ew-dragging');
+      st=null;save();render();
     };
-    el.onpointerup=finish; el.onpointercancel=finish;
-    el.onclick=e=>{clearTimeout(hold);if(homeEdit){e.preventDefault();e.stopPropagation();return}}
-  });
-
-  $$('.home-widget[data-home-widget-id]').forEach(el=>{
-    let hold=0, ghost=null, sx=0, sy=0, moved=false; const id=el.dataset.homeWidgetId;
-    el.onpointerdown=e=>{
-      sx=e.clientX;sy=e.clientY;moved=false;
-      if(!homeEdit){hold=setTimeout(()=>{homeEdit=true;navigator.vibrate?.(12);render();uiToast('编辑模式')},420);return}
-      dragState={widgetId:id,pointerId:e.pointerId};el.setPointerCapture?.(e.pointerId);document.body.classList.add('ew-dragging');el.classList.add('is-drag-source');e.preventDefault();
-    };
-    el.onpointermove=e=>{
-      if(!homeEdit||!dragState||dragState.widgetId!==id)return;
-      const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)+Math.abs(dy)<5&&!ghost)return;moved=true;
-      if(!ghost){ghost=el.cloneNode(true);ghost.classList.add('drag-ghost','widget-drag-ghost');document.body.appendChild(ghost)}
-      ghost.style.left=e.clientX+'px';ghost.style.top=e.clientY+'px';
-      document.querySelectorAll('.is-drop-target,.is-folder-target').forEach(x=>x.classList.remove('is-drop-target','is-folder-target')); const under=document.elementFromPoint(e.clientX,e.clientY); const folderHit=under?.closest?.('[data-folder-key]'); const appHit=under?.closest?.('[data-app-key]'); if(folderHit)folderHit.classList.add('is-folder-target'); else if(appHit)appHit.classList.add('is-drop-target');
-      const hp=$('#homePages');if(hp){const r=hp.getBoundingClientRect();if(e.clientX>r.right-34&&homePage<$$('.home-page').length-1){homePage++;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}else if(e.clientX<r.left+34&&homePage>0){homePage--;hp.scrollTo({left:homePage*hp.clientWidth,behavior:'smooth'})}}
-      e.preventDefault();
-    };
-    const finish=e=>{clearTimeout(hold);if(!homeEdit||!dragState||dragState.widgetId!==id){dragState=null;return}try{if(el.hasPointerCapture?.(e.pointerId))el.releasePointerCapture(e.pointerId)}catch{}ghost?.remove();ghost=null;
-      if(moved){window.__elsewhereIgnoreClickUntil=Date.now()+450;const hit=document.elementFromPoint(e.clientX,e.clientY);const target=hit?.closest?.('[data-home-widget-id]');const page=hit?.closest?.('[data-app-page]');const w=(S.custom.homeWidgets||[]).find(x=>x.id===id);if(target&&target.dataset.homeWidgetId!==id){reorderWidget(id,target.dataset.homeWidgetId)}else if(w&&page){w.page=Number(page.dataset.appPage)||0;save()}dragState=null;clearDragUI();render()}else{dragState=null;clearDragUI();el.classList.add('is-edit-selected');setTimeout(()=>el.classList.remove('is-edit-selected'),650)}
-    };
-    el.onpointerup=finish;el.onpointercancel=finish;
-    el.onclick=e=>{clearTimeout(hold);if(homeEdit){e.preventDefault();e.stopPropagation()}}
-  });
-
+    handle.onpointerup=finish;handle.onpointercancel=e=>{if(st){st.ghost.remove();source.classList.remove('is-drag-source');clearTargets();document.body.classList.remove('ew-dragging');st=null;render()}};
+  };
+  $$('[data-app-drag-handle]').forEach(h=>bindDragHandle(h,'app'));
+  $$('[data-widget-drag-handle]').forEach(h=>bindDragHandle(h,'widget'));
 }
+
+
 let iosTouchGesturesBound=false;
 function envSafeBottom(){
   // CSS env() cannot be read directly in JS; this keeps the home gesture edge narrow

@@ -1,16 +1,3 @@
-# Elsewhere v2.8 — Home Reset
+# Elsewhere v2.8.2 — Smooth Drag
 
-- Home rebuilt around a stable mini-phone layout: hero widget, two utility widgets, then a normal 4-column app grid.
-- Home 02 keeps compact widgets above a normal app grid.
-- Repairs stale launcher/folder references so apps do not disappear.
-- Edit mode no longer opens widgets accidentally: tapping while editing never navigates, and a non-drag widget tap no longer opens the widget editor automatically.
-- Widget delete/edit controls are larger and touch-friendly.
-- Dragging uses a stronger floating ghost and clearer drop/folder targets.
-- Existing custom widgets, app order, folders, wallpaper, Gemini, chats and lock settings are preserved.
-
-Run:
-```powershell
-npm.cmd install
-npm.cmd start
-```
-Open http://localhost:3000
+Home editing uses explicit drag handles instead of long-press gestures. Enter Customize → 整理主页, then drag only from the four-dot handle. Apps and widgets can be reordered and moved across pages without opening accidentally. Folder merging remains disabled during drag for stability.
