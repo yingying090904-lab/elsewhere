@@ -1,3 +1,9 @@
-# Elsewhere v2.8.2 — Smooth Drag
+# Elsewhere v2.9 — Concept Home
 
-Home editing uses explicit drag handles instead of long-press gestures. Enter Customize → 整理主页, then drag only from the four-dot handle. Apps and widgets can be reordered and moved across pages without opening accidentally. Folder merging remains disabled during drag for stability.
+主页按已确认的 concept board 重做：紧凑 editorial header、hero widget、两张小卡、4×2 标准 App grid、固定 dock。保留 Gemini、聊天存档、锁屏、壁纸与整理主页。
+
+运行：
+```
+npm install
+npm start
+```

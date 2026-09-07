@@ -2,7 +2,7 @@ const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const KEY = 'elsewhere-state';
 const LEGACY_KEYS = ['elsewhere-v242-state','elsewhere-v24-state','elsewhere-v23-state','elsewhere-v22-state','elsewhere-v21-state','elsewhere-v20-state'];
-const VERSION = '2.8.2-smooth-drag';
+const VERSION = '2.9.0-concept-home';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -365,32 +365,47 @@ function homeStudioSheet(page=homePage){
 function htmlToElement(html){const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild}
 
 function home(){
-  const now=new Date(), day=now.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
+  const now=new Date();
+  const day=now.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'}).toUpperCase();
   const layout=ensureHomeLayout().filter(k=>String(k).startsWith('folder:')||!S.custom.hiddenApps.includes(k));
-  const firstApps=layout.slice(0,8), rest=layout.slice(8);
-  const pages=[]; for(let i=0;i<rest.length;i+=12) pages.push(rest.slice(i,i+12));
+  const pageSize=8;
+  const appPages=[];
+  for(let i=0;i<layout.length;i+=pageSize) appPages.push(layout.slice(i,i+pageSize));
   const minPages=Math.max(2,Number(S.custom.homePageCount)||2);
   const widgetMax=Math.max(0,...(S.custom.homeWidgets||[]).map(w=>Number(w.page)||0));
-  const totalPages=Math.max(minPages,1+pages.length,widgetMax+1);
-  while(pages.length<totalPages-1) pages.push([]);
-  const widgetZone=pi=>`<section class="home-widget-grid page-widget-zone" data-widget-zone="${pi}">${homeWidgetsHtml(pi)}</section>`;
-  const appGrid=(items,extra='')=>`<div class="phone-app-grid classic-app-grid ${extra}">${items.map(homeEntry).join('')}</div>`;
-  const editTop=homeEdit?`<button class="home-done" data-home-edit-done>完成</button>`:'';
-  const pageShell=(pi,inner)=>`<section class="home-page ${pi===0?'today-page':'app-page'}" data-app-page="${pi}" ${pageWallpaperStyle(pi)}>${inner}</section>`;
+  const totalPages=Math.max(minPages,appPages.length,widgetMax+1);
+  while(appPages.length<totalPages) appPages.push([]);
+
+  const widgetZone=pi=>`<section class="home-widget-grid concept-widget-grid" data-widget-zone="${pi}">${homeWidgetsHtml(pi)}</section>`;
+  const appGrid=(items)=>`<section class="concept-apps"><div class="phone-app-grid classic-app-grid concept-app-grid">${items.map(homeEntry).join('')}</div></section>`;
+  const editTop=homeEdit?`<button class="home-done concept-done" data-home-edit-done>完成</button>`:'';
+  const pageHead=(pi,title,eyebrow)=>`<header class="concept-home-head"><div><small>${esc(eyebrow)}</small><h2>${esc(title)}</h2></div><div class="concept-home-actions"><span>${pi===0?day:`HOME ${String(pi+1).padStart(2,'0')}`}</span><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${editTop}</div></header>`;
+  const pageShell=(pi,inner)=>`<section class="home-page concept-home-page ${pi===0?'concept-home-one':'concept-home-other'}" data-app-page="${pi}" ${pageWallpaperStyle(pi)}>${inner}</section>`;
+
   const first=pageShell(0,`
-    <div class="mini-home-head"><div><small>${day}</small><b>Elsewhere</b></div><div class="mini-home-actions"><span>@${esc(S.owner.handle||'ann')}</span><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${editTop}</div></div>
-    <div class="home-micro-copy"><span>${esc(S.custom.subtitle||'此刻以外')}</span><em>${esc(S.custom.quote||'same sky, different dreams.')}</em></div>
+    ${pageHead(0,'Elsewhere','A SMALL PHONE, A BIGGER YOU')}
+    <div class="concept-subline"><span>${esc(S.custom.subtitle||'此刻以外')}</span><em>${esc(S.custom.quote||'same sky, different dreams.')}</em></div>
     ${widgetZone(0)}
-    <div class="launcher-rule"><small>HOME 01</small><span>点 ＋ 调整主页</span></div>
-    ${appGrid(firstApps,'home-favorite-grid')}`);
-  const others=pages.map((items,i)=>{const pi=i+1;return pageShell(pi,`
-    <div class="mini-home-head"><div><small>HOME ${String(pi+1).padStart(2,'0')}</small><b>${pi===1?'Daily room':'Elsewhere'}</b></div><div class="mini-home-actions"><span>${pageWidgets(pi).length} widgets</span><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${editTop}</div></div>
-    ${widgetZone(pi)}
-    <div class="launcher-rule"><small>APPS</small><span>swipe · tap · stay awhile</span></div>
-    ${appGrid(items)}
-    ${!items.length&&!pageWidgets(pi).length?'<div class="empty-home-page">这一页还是空的。进入编辑后可以添加 Widget 或把 App 拖过来。</div>':''}`)}).join('');
-  return `<section class="home swipe-home ${homeEdit?'home-edit':''}"><div class="home-pages" id="homePages">${first}${others}</div><div class="home-page-dots" aria-label="主页分页">${Array.from({length:totalPages},(_,i)=>`<button data-home-dot="${i}" class="${i===homePage?'active':''}" aria-label="第 ${i+1} 页"></button>`).join('')}</div><nav class="tumblr-dock text-dock phone-dock"><button data-open="messages">消息</button><button data-open="thomas">Thomas</button><button data-open="social">社交</button><button data-open="profile">我</button></nav></section>`;
+    ${appGrid(appPages[0])}`);
+
+  const others=appPages.slice(1).map((items,i)=>{
+    const pi=i+1;
+    const title=pi===1?'Daily room':`Elsewhere ${String(pi+1).padStart(2,'0')}`;
+    const eyebrow=pi===1?'WIDGETS & APPS':'YOUR LITTLE ROOMS';
+    return pageShell(pi,`
+      ${pageHead(pi,title,eyebrow)}
+      ${widgetZone(pi)}
+      ${appGrid(items)}
+      ${!items.length&&!pageWidgets(pi).length?'<div class="concept-empty">这一页还是空的。点右上角 ＋ 添加 Widget。</div>':''}`)
+  }).join('');
+
+  return `<section class="home swipe-home concept-home ${homeEdit?'home-edit':''}">
+    <div class="home-pages" id="homePages">${first}${others}</div>
+    <div class="home-page-dots" aria-label="主页分页">${Array.from({length:totalPages},(_,i)=>`<button data-home-dot="${i}" class="${i===homePage?'active':''}" aria-label="第 ${i+1} 页"></button>`).join('')}</div>
+    <nav class="tumblr-dock text-dock phone-dock concept-dock"><button data-open="messages">消息</button><button data-open="thomas">Thomas</button><button data-open="social">社交</button><button data-open="profile">我</button></nav>
+  </section>`;
 }
+
 function orderedApps(){const order=S.custom?.appOrder||[];return [...apps].sort((a,b)=>{const ai=order.indexOf(a[0]),bi=order.indexOf(b[0]);return (ai<0?999:ai)-(bi<0?999:bi)});}
 function view(k,arg){
   if(k==='player') return playerView(arg);
