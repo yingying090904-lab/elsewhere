@@ -953,7 +953,12 @@ function ensureIOSTouchGestures(){
     const opener=g.target?.closest?.('[data-open]');
     // iOS Safari can suppress the synthetic click after a touch gesture listener.
     // Treat a short, stationary touch as a real tap and navigate here directly.
-    if(!g.done && moved<18 && opener && !(homeEdit&&opener.closest('.phone-app-grid'))){
+    // In home edit mode, every tap that starts inside a home page belongs to the
+    // editor. Never turn it into navigation — even if the finger barely moved.
+    // This fixes the iOS touchend path that used to bypass the normal click guard
+    // and unexpectedly exit edit mode when touching a widget or its handle.
+    const editingHomeTarget=homeEdit && !!g.target?.closest?.('.home-page');
+    if(!g.done && moved<18 && opener && !editingHomeTarget){
       const target=opener.dataset.open;
       g.done=true;
       if(e.cancelable)e.preventDefault();
@@ -985,6 +990,8 @@ function bind(){
   aiStatus(true);
   ensureIOSTouchGestures();
   // iOS Safari: delegated navigation keeps widgets/dock tappable even after touch/long-press handlers.
+  // While arranging the home screen, pointer/touch releases inside a home page
+  // must never become navigation events.
   const phoneRoot=$('.phone');
   phoneRoot?.addEventListener('click',e=>{if((window.__elsewhereIgnoreClickUntil||0)>Date.now()){e.preventDefault();e.stopPropagation();return;}const x=e.target.closest?.('[data-open]');if(!x)return;if(homeEdit&&x.closest('.home-page')){e.preventDefault();e.stopPropagation();return;}e.preventDefault();e.stopPropagation();open(x.dataset.open)},true);
   phoneOSBind();

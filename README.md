@@ -1,13 +1,13 @@
-# Elsewhere v3.0.1 — Polished Home
+# Elsewhere v3.0.2 — Edit Guard + Label Fix
 
-A refinement pass on the v3.0 reference build: tighter two-page composition, safer handle-only drag with activation threshold, a fixed edit shelf, protected widget removal, Home Studio cleanup, and a keyboard-safe Thomas composer.
+- Fixes iOS edit mode unexpectedly opening a widget/app and exiting arrange mode.
+- In arrange mode, home cards cannot navigate; only drag/config controls accept input.
+- Restores readable app labels on the second row by reserving a clear lane above the dock.
+- Slightly clearer drag handles without enlarging destructive controls.
+- Keeps v3.0.1 Gemini, persistent chats, lock screen, wallpaper studio, widgets, and Home Studio.
 
 Run:
-```bash
+```
 npm install
 npm start
 ```
-
-Render environment:
-- `GEMINI_API_KEY`
-- optional `GEMINI_MODEL`

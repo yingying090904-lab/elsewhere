@@ -1512,3 +1512,97 @@ body{position:fixed!important;inset:0!important;margin:0!important;overflow:hidd
  .app-view:has(.thomas-page)>.composer.thomas-composer{grid-template-columns:38px minmax(0,1fr) 34px 58px!important;margin-left:10px!important;margin-right:10px!important}.composer-plus,.composer-attach{height:40px!important}.thomas-composer .send-text{height:40px!important;min-width:58px!important}
 }
 @media(max-height:760px){.concept-widget-grid{grid-auto-rows:60px!important}.concept-home-one .concept-widget-grid .hw-thomas,.concept-home-other .concept-widget-grid .hw-profile{min-height:126px!important}.concept-app-grid{grid-template-rows:repeat(2,62px)!important;grid-auto-rows:62px!important}.concept-app-grid .app-icon.tumblr-app{height:62px!important}.concept-app-grid .app-visual{width:40px!important;height:40px!important;min-width:40px!important}.concept-home .home-page-dots{bottom:calc(78px + env(safe-area-inset-bottom))!important}}
+
+
+/* ======================================================================
+   v3.0.2 — edit-mode touch guard + readable launcher labels
+   ====================================================================== */
+
+/* The launcher must always leave a clear visual lane above page dots + dock.
+   On short iPhones the second icon row was being painted underneath the dock,
+   which made its labels look as though they had disappeared. */
+.concept-home-page{
+  padding-bottom:calc(env(safe-area-inset-bottom) + 154px)!important;
+}
+.concept-apps{
+  align-self:end!important;
+  margin-bottom:10px!important;
+  padding-bottom:0!important;
+  min-height:146px!important;
+  overflow:visible!important;
+}
+.concept-app-grid{
+  grid-template-rows:repeat(2,64px)!important;
+  grid-auto-rows:64px!important;
+  row-gap:10px!important;
+  overflow:visible!important;
+}
+.concept-app-grid .app-icon.tumblr-app{
+  height:64px!important;
+  min-height:64px!important;
+  overflow:visible!important;
+  align-content:start!important;
+}
+.concept-app-grid .app-copy{
+  display:block!important;
+  width:100%!important;
+  min-height:15px!important;
+  overflow:visible!important;
+  text-align:center!important;
+  line-height:1.1!important;
+}
+.concept-app-grid .app-copy b{
+  display:block!important;
+  max-width:100%!important;
+  min-height:13px!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  font-size:10px!important;
+  line-height:13px!important;
+  color:var(--ink)!important;
+  opacity:.96!important;
+}
+.concept-app-grid .app-copy small{display:none!important}
+
+/* Keep pagination visually separate from app labels. */
+.concept-home .home-page-dots{
+  bottom:calc(86px + env(safe-area-inset-bottom))!important;
+  z-index:32!important;
+}
+.concept-dock{z-index:35!important}
+
+/* Arrange mode is a modal interaction state. The cards themselves cannot be
+   tapped/opened; only explicit editor controls receive pointer events. */
+.concept-home.home-edit .home-page [data-open],
+.concept-home.home-edit .home-page [data-folder-open]{
+  pointer-events:none!important;
+}
+.concept-home.home-edit .home-page .widget-edit-controls,
+.concept-home.home-edit .home-page .widget-edit-controls *,
+.concept-home.home-edit .home-page .home-drag-handle,
+.concept-home.home-edit .home-page .home-drag-handle *{
+  pointer-events:auto!important;
+}
+.concept-home.home-edit .home-page{
+  touch-action:pan-x!important;
+}
+
+/* The grip is visually clearer without becoming a giant accidental target. */
+.home-drag-handle,.widget-drag-handle{
+  width:30px!important;
+  height:30px!important;
+  border:1px solid rgba(255,255,255,.88)!important;
+  box-shadow:0 8px 20px rgba(45,27,36,.17)!important;
+}
+.home-drag-handle.is-held,.widget-drag-handle.is-held{
+  transform:scale(.94)!important;
+  box-shadow:0 4px 11px rgba(45,27,36,.18)!important;
+}
+
+@media(max-height:760px){
+  .concept-home-page{padding-bottom:calc(env(safe-area-inset-bottom) + 146px)!important}
+  .concept-app-grid{grid-template-rows:repeat(2,60px)!important;grid-auto-rows:60px!important;row-gap:8px!important}
+  .concept-app-grid .app-icon.tumblr-app{height:60px!important;min-height:60px!important}
+  .concept-app-grid .app-copy b{font-size:9.5px!important;line-height:12px!important}
+}
