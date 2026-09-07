@@ -1242,3 +1242,46 @@ body,#app,.shell{
 html,body,#app,.shell,.phone{height:100%!important;min-height:100%!important;background:var(--wallpaper)!important}
 body{position:fixed!important;inset:0!important;margin:0!important;overflow:hidden!important}
 @media (max-height:760px){.tumblr-brand h1{font-size:45px!important}.home-profile-chip{display:none!important}.home-widget{min-height:88px!important}.home-widget[data-widget-size="1x1"],.home-widget[data-widget-size="2x1"]{min-height:92px!important}.launcher-rule{margin-top:10px!important}.app-icon .app-visual{width:52px!important;height:52px!important;min-width:52px!important}}
+
+/* =========================
+   v2.8 HOME RESET — reference-driven, stable edit mode
+   ========================= */
+:root{--v28-card:color-mix(in srgb,var(--paper) 78%,transparent);--v28-line:color-mix(in srgb,var(--ink) 10%,transparent);--v28-soft:color-mix(in srgb,var(--accent) 9%,transparent)}
+.home-page{padding:calc(env(safe-area-inset-top) + 26px) 26px calc(154px + env(safe-area-inset-bottom))!important;overflow:hidden!important}
+.home-page::after{background:linear-gradient(90deg,transparent 0 50%,var(--v28-line) 50% calc(50% + 1px),transparent calc(50% + 1px))!important;opacity:.18!important}
+.mini-home-head{position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;min-height:54px;padding:2px 0 12px;border-bottom:1px solid var(--v28-line);margin-bottom:12px}
+.mini-home-head>div:first-child{display:grid;gap:2px}.mini-home-head small{font-size:9px;letter-spacing:.18em;color:var(--muted)}.mini-home-head b{font:500 20px/1.05 Georgia,"Times New Roman",serif;color:var(--ink)}
+.mini-home-actions{display:flex;align-items:center;gap:8px}.mini-home-actions>span{font-size:10px;color:var(--muted);letter-spacing:.08em}
+.home-micro-copy{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;min-height:34px;margin:0 0 12px;color:var(--muted)}.home-micro-copy span{font-size:12px;letter-spacing:.18em;color:var(--accent)}.home-micro-copy em{font:italic 11px Georgia,serif}
+.today-page .home-widget-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-auto-flow:row dense!important;gap:10px!important}
+.home-widget{background:var(--v28-card)!important;border:1px solid color-mix(in srgb,var(--paper) 78%,white 22%)!important;border-radius:24px!important;box-shadow:0 10px 26px rgba(81,48,60,.09)!important;overflow:hidden!important}
+.today-page .hw-thomas{grid-column:1/-1!important;min-height:146px!important;padding:20px!important;background:linear-gradient(135deg,color-mix(in srgb,var(--paper) 84%,transparent),color-mix(in srgb,var(--accent) 11%,var(--paper)))!important}
+.today-page .hw-thomas small{margin-bottom:12px!important}.today-page .hw-thomas b{font-size:31px!important}.today-page .hw-thomas span{max-width:75%;font-size:12px!important;line-height:1.45!important}
+.today-page .hw-clock,.today-page .hw-weather{grid-column:span 2!important;min-height:112px!important}
+.today-page .hw-clock b,.today-page .hw-weather b{font-size:30px!important}
+.app-page .home-widget-grid{grid-auto-flow:row dense!important;gap:10px!important;min-height:0!important}
+.app-page .home-widget[data-widget-size="2x1"]{grid-column:span 2!important;min-height:108px!important}.app-page .home-widget[data-widget-size="1x1"]{min-height:108px!important}
+.launcher-rule{margin:12px 0 11px!important;padding-top:9px!important}
+.phone-app-grid.classic-app-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:13px 10px!important;grid-auto-flow:row!important;align-content:start!important}
+.app-icon .app-visual{width:56px!important;height:56px!important;min-width:56px!important;border-radius:17px!important;background:color-mix(in srgb,var(--paper) 75%,transparent)!important;box-shadow:0 7px 18px rgba(66,42,52,.08)!important}
+.app-icon .app-copy b{font-size:11px!important}
+.home-favorite-grid{max-height:178px!important;overflow:hidden!important}
+.home-plus{background:color-mix(in srgb,var(--paper) 78%,transparent)!important}
+/* Edit mode: no navigation, obvious handles, no wiggle-induced jitter */
+.home-edit .home-page{touch-action:none!important}
+.home-edit .app-icon,.home-edit .home-widget{animation:none!important;outline:none!important}
+.home-edit .home-widget{overflow:visible!important;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 55%,transparent),0 14px 32px rgba(70,40,54,.14)!important}
+.home-edit .app-icon .app-visual{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 42%,transparent),0 10px 24px rgba(70,40,54,.12)!important}
+.widget-edit-controls{top:-12px!important;right:-10px!important;gap:7px!important;pointer-events:auto!important}
+.widget-edit-controls button{width:34px!important;height:34px!important;font-size:15px!important;border:2px solid rgba(255,255,255,.92)!important;box-shadow:0 7px 18px rgba(55,30,40,.24)!important;touch-action:manipulation!important}
+.widget-edit-controls [data-widget-delete]{background:#5b434b!important}.widget-edit-controls [data-widget-config]{background:var(--accent)!important}
+.home-edit-palette{top:calc(env(safe-area-inset-top) + 78px)!important;width:184px!important;background:color-mix(in srgb,var(--paper) 96%,transparent)!important}
+.is-edit-selected{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 26%,transparent),0 14px 34px rgba(70,40,54,.16)!important}
+.is-drag-source{opacity:.18!important;transform:scale(.96)!important}
+.drag-ghost{width:82px!important;transform:translate(-50%,-56%) scale(1.14)!important;opacity:.98!important;box-shadow:0 24px 54px rgba(46,25,34,.32)!important;border-radius:20px!important}
+.widget-drag-ghost{width:min(310px,72vw)!important;transform:translate(-50%,-56%) scale(1.04)!important;box-shadow:0 24px 58px rgba(46,25,34,.30)!important}
+.is-drop-target{outline:2px dashed var(--accent)!important;outline-offset:7px!important}.is-folder-target{outline:3px solid var(--accent)!important;outline-offset:7px!important;box-shadow:0 0 0 11px color-mix(in srgb,var(--accent) 13%,transparent)!important}
+/* Keep pagination and dock quiet and fixed */
+.home-page-dots{bottom:calc(112px + env(safe-area-inset-bottom))!important}
+.tumblr-dock.phone-dock{height:68px!important;bottom:calc(17px + env(safe-area-inset-bottom))!important}
+@media (max-height:760px){.home-micro-copy{display:none!important}.today-page .hw-thomas{min-height:126px!important}.home-favorite-grid{max-height:155px!important}.app-icon .app-visual{width:51px!important;height:51px!important;min-width:51px!important}}

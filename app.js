@@ -2,7 +2,7 @@ const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const KEY = 'elsewhere-state';
 const LEGACY_KEYS = ['elsewhere-v242-state','elsewhere-v24-state','elsewhere-v23-state','elsewhere-v22-state','elsewhere-v21-state','elsewhere-v20-state'];
-const VERSION = '2.7.0-home-studio';
+const VERSION = '2.8.0-home-reset';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -23,7 +23,7 @@ const themes = {
 const defaultState = {
   theme:'blush', locked:true, owner:{name:'Ann',handle:'ann',bio:'collecting little things from ordinary days.',status:'somewhere between busy and daydreaming.',avatar:'',banner:'',tags:['scrapbook','study']}, wallpaper:'',
   social:{userId:'u-'+uid(),following:[],feed:[],lastSync:0},
-  custom:{title:'Elsewhere',subtitle:'此刻以外',tagline:'A SMALL PHONE, A BIGGER YOU',quote:'same sky, different dreams.',accent:'',paper:'',ink:'',radius:28,font:'serif',density:'cozy',iconShape:'soft',appOrder:[],hiddenApps:[],aliases:{},cardOpacity:88,blur:22,shadow:16,grain:24,spacing:18,appSize:58,dockOpacity:82,borderStrength:18,titleScale:100,wallpaperTint:14, iconStyle:'star', showHomeAvatar:true, clickEffect:'sparkle', effectStrength:2, compactApps:true, pageWallpapers:{}, folders:[], homeLayout:[], homeWidgets:[{id:'hw-clock',type:'clock',page:0,size:'1x1'},{id:'hw-todo',type:'todo',page:0,size:'1x1'},{id:'hw-thomas',type:'thomas',page:0,size:'2x1'},{id:'hw-weather',type:'weather',page:1,size:'2x1'},{id:'hw-study',type:'study',page:1,size:'2x1'}],homeLayoutRevision:'v27', homePageCount:2},
+  custom:{title:'Elsewhere',subtitle:'此刻以外',tagline:'A SMALL PHONE, A BIGGER YOU',quote:'same sky, different dreams.',accent:'',paper:'',ink:'',radius:28,font:'serif',density:'cozy',iconShape:'soft',appOrder:[],hiddenApps:[],aliases:{},cardOpacity:88,blur:22,shadow:16,grain:24,spacing:18,appSize:58,dockOpacity:82,borderStrength:18,titleScale:100,wallpaperTint:14, iconStyle:'star', showHomeAvatar:true, clickEffect:'sparkle', effectStrength:2, compactApps:true, pageWallpapers:{}, folders:[], homeLayout:[], homeWidgets:[{id:'hw-thomas',type:'thomas',page:0,size:'4x2'},{id:'hw-clock',type:'clock',page:0,size:'2x1'},{id:'hw-weather',type:'weather',page:0,size:'2x1'},{id:'hw-todo',type:'todo',page:1,size:'2x1'},{id:'hw-study',type:'study',page:1,size:'2x1'}],homeLayoutRevision:'v28', homePageCount:2},
   weather:{city:'Elsewhere',temp:'29',desc:'大毛毛雨 · 微风',low:'26',high:'30',loading:false},
   characters:[
     {id:'victor',name:'Victor',initial:'V',relation:'close friend',status:'last seen just now',color:'#92727b',personality:'敏锐、克制、有点坏心眼，会记住细节。',style:'自然短句，偶尔很轻地调侃。'},
@@ -117,14 +117,18 @@ function load(){
 }
 let S=load(), current='home', currentArg=null, timer=null, todoTab='todo', homePage=0, homeEdit=false, dragState=null, shadeOpen=false, calendarOffset=0, lockStage='welcome', passcodeBuffer='';
 S.locked=true;
-// v2.7 one-time launcher cleanup: keep starter widgets balanced across the first two pages.
-if(!S.custom.v27HomeStudio){
-  (S.custom.homeWidgets||[]).forEach(w=>{
-    if(['clock','todo','thomas'].includes(w.type)) w.page=0;
-    if(['weather','study'].includes(w.type)) w.page=1;
-  });
+// v2.8 one-time launcher reset: only reposition the five stock widgets; keep user widgets/apps/folders intact.
+if(!S.custom.v28HomeReset){
+  const stock={
+    'hw-thomas':{page:0,size:'4x2'},
+    'hw-clock':{page:0,size:'2x1'},
+    'hw-weather':{page:0,size:'2x1'},
+    'hw-todo':{page:1,size:'2x1'},
+    'hw-study':{page:1,size:'2x1'}
+  };
+  (S.custom.homeWidgets||[]).forEach(w=>{const v=stock[w.id];if(v){w.page=v.page;w.size=v.size;}});
   S.custom.homePageCount=Math.max(2,Number(S.custom.homePageCount)||2);
-  S.custom.v27HomeStudio=true;
+  S.custom.v28HomeReset=true;
   save();
 }
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){console.warn('Elsewhere save failed',e);} }
@@ -216,9 +220,14 @@ function icon(k,g,l){
 
 function ensureHomeLayout(){
   const known=orderedApps().map(a=>a[0]);
-  let layout=(S.custom.homeLayout||[]).filter(x=>known.includes(x)||String(x).startsWith('folder:'));
-  const inFolders=new Set((S.custom.folders||[]).flatMap(f=>f.apps||[]));
+  const knownSet=new Set(known);
+  S.custom.folders=(S.custom.folders||[]).map(f=>({...f,apps:[...new Set((f.apps||[]).filter(k=>knownSet.has(k)))]}));
+  const validFolderIds=new Set(S.custom.folders.map(f=>f.id));
+  let layout=(S.custom.homeLayout||[]).filter(x=>knownSet.has(x)||(String(x).startsWith('folder:')&&validFolderIds.has(String(x).slice(7))));
+  const inFolders=new Set(S.custom.folders.flatMap(f=>f.apps||[]));
   for(const k of known) if(!layout.includes(k)&&!inFolders.has(k)) layout.push(k);
+  // remove duplicate app/folder entries so nothing can disappear behind a stale layout row
+  layout=[...new Set(layout)];
   S.custom.homeLayout=layout; return layout;
 }
 function folderById(id){return (S.custom.folders||[]).find(f=>f.id===id)}
@@ -342,8 +351,18 @@ function home(){
   const appGrid=(items,extra='')=>`<div class="phone-app-grid classic-app-grid ${extra}">${items.map(homeEntry).join('')}</div>`;
   const editTop=homeEdit?`<button class="home-edit-done" data-edit-done>完成</button>`:'';
   const pageShell=(pi,inner)=>`<section class="home-page ${pi===0?'today-page':'app-page'}" data-app-page="${pi}" ${pageWallpaperStyle(pi)}>${inner}</section>`;
-  const first=pageShell(0,`<div class="tumblr-statusline"><span>${day}</span><div class="today-tools"><span>elsewhere</span><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${editTop}</div></div><header class="tumblr-brand"><small>${esc(S.custom.tagline||'A SMALL PHONE, A BIGGER YOU')}</small><h1>${esc(S.custom.title)}</h1><div><p>${esc(S.custom.subtitle)}</p><em>${esc(S.custom.quote)}</em></div></header>${S.custom.showHomeAvatar?`<button class="home-profile-chip" data-open="profile">${S.owner.avatar?`<img src="${esc(S.owner.avatar)}" alt="">`:`<span>${esc((S.owner.name||'E')[0])}</span>`}<div><b>${esc(S.owner.name||'Elsewhere user')}</b><small>@${esc(S.owner.handle||'elsewhere')}</small></div></button>`:''}${widgetZone(0)}<div class="launcher-rule"><small>HOME 01</small><span>${homeEdit?'drag freely':'hold to edit'}</span></div>${appGrid(firstApps,'home-favorite-grid')}`);
-  const others=pages.map((items,i)=>{const pi=i+1;return pageShell(pi,`<div class="page-kicker"><span>HOME ${String(pi+1).padStart(2,'0')}</span><div class="page-tools"><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${homeEdit?'<button data-edit-done>完成</button>':''}</div></div>${widgetZone(pi)}<div class="launcher-rule"><small>APPS</small><span>${homeEdit?'drag to move or merge':'your little phone'}</span></div>${appGrid(items)}${!items.length&&!pageWidgets(pi).length?'<div class="empty-home-page">这一页还是空的。长按后可以添加组件或拖 App 过来。</div>':''}`)}).join('');
+  const first=pageShell(0,`
+    <div class="mini-home-head"><div><small>${day}</small><b>Elsewhere</b></div><div class="mini-home-actions"><span>@${esc(S.owner.handle||'ann')}</span><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${editTop}</div></div>
+    <div class="home-micro-copy"><span>${esc(S.custom.subtitle||'此刻以外')}</span><em>${esc(S.custom.quote||'same sky, different dreams.')}</em></div>
+    ${widgetZone(0)}
+    <div class="launcher-rule"><small>HOME 01</small><span>${homeEdit?'拖动以排列':'长按进入编辑'}</span></div>
+    ${appGrid(firstApps,'home-favorite-grid')}`);
+  const others=pages.map((items,i)=>{const pi=i+1;return pageShell(pi,`
+    <div class="mini-home-head"><div><small>HOME ${String(pi+1).padStart(2,'0')}</small><b>${pi===1?'Daily room':'Elsewhere'}</b></div><div class="mini-home-actions"><span>${pageWidgets(pi).length} widgets</span><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${homeEdit?'<button class="home-edit-done" data-edit-done>完成</button>':''}</div></div>
+    ${widgetZone(pi)}
+    <div class="launcher-rule"><small>APPS</small><span>${homeEdit?'拖到图标中央可建文件夹':'swipe · tap · stay awhile'}</span></div>
+    ${appGrid(items)}
+    ${!items.length&&!pageWidgets(pi).length?'<div class="empty-home-page">这一页还是空的。进入编辑后可以添加 Widget 或把 App 拖过来。</div>':''}`)}).join('');
   return `<section class="home swipe-home ${homeEdit?'home-edit':''}"><div class="home-pages" id="homePages">${first}${others}</div><div class="home-page-dots" aria-label="主页分页">${Array.from({length:totalPages},(_,i)=>`<button data-home-dot="${i}" class="${i===homePage?'active':''}" aria-label="第 ${i+1} 页"></button>`).join('')}</div>${homeEdit?homeEditPaletteHtml():''}<nav class="tumblr-dock text-dock phone-dock"><button data-open="messages">消息</button><button data-open="thomas">Thomas</button><button data-open="social">社交</button><button data-open="profile">我</button></nav></section>`;
 }
 function orderedApps(){const order=S.custom?.appOrder||[];return [...apps].sort((a,b)=>{const ai=order.indexOf(a[0]),bi=order.indexOf(b[0]);return (ai<0?999:ai)-(bi<0?999:bi)});}
@@ -755,6 +774,7 @@ function phoneOSBind(){
       try{if(el.hasPointerCapture?.(e.pointerId))el.releasePointerCapture(e.pointerId)}catch{}
       ghost?.remove(); ghost=null;
       if(moved){
+        window.__elsewhereIgnoreClickUntil=Date.now()+450;
         const hit=document.elementFromPoint(e.clientX,e.clientY); const folder=hit?.closest?.('[data-folder-key]'); const target=hit?.closest?.('[data-app-key]'); const page=hit?.closest?.('[data-app-page]');
         if(folder)addAppToFolder(key,folder.dataset.folderKey); else if(target&&target.dataset.appKey!==key){const r=target.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;const center=Math.abs(e.clientX-cx)<r.width*.26&&Math.abs(e.clientY-cy)<r.height*.28;if(center){const fid=createFolderFromApps(key,target.dataset.appKey);if(fid)uiToast('已合并成文件夹 · 打开后可重命名');}else{moveLayoutEntry(key,target.dataset.appKey,e.clientX<cx||e.clientY<cy);}} else if(page)moveAppToPage(key,Number(page.dataset.appPage));
         dragState=null; clearDragUI(); render();
@@ -781,7 +801,7 @@ function phoneOSBind(){
       e.preventDefault();
     };
     const finish=e=>{clearTimeout(hold);if(!homeEdit||!dragState||dragState.widgetId!==id){dragState=null;return}try{if(el.hasPointerCapture?.(e.pointerId))el.releasePointerCapture(e.pointerId)}catch{}ghost?.remove();ghost=null;
-      if(moved){const hit=document.elementFromPoint(e.clientX,e.clientY);const target=hit?.closest?.('[data-home-widget-id]');const page=hit?.closest?.('[data-app-page]');const w=(S.custom.homeWidgets||[]).find(x=>x.id===id);if(target&&target.dataset.homeWidgetId!==id){reorderWidget(id,target.dataset.homeWidgetId)}else if(w&&page){w.page=Number(page.dataset.appPage)||0;save()}dragState=null;clearDragUI();render()}else{dragState=null;clearDragUI();editWidgetSheet(id)}
+      if(moved){window.__elsewhereIgnoreClickUntil=Date.now()+450;const hit=document.elementFromPoint(e.clientX,e.clientY);const target=hit?.closest?.('[data-home-widget-id]');const page=hit?.closest?.('[data-app-page]');const w=(S.custom.homeWidgets||[]).find(x=>x.id===id);if(target&&target.dataset.homeWidgetId!==id){reorderWidget(id,target.dataset.homeWidgetId)}else if(w&&page){w.page=Number(page.dataset.appPage)||0;save()}dragState=null;clearDragUI();render()}else{dragState=null;clearDragUI();el.classList.add('is-edit-selected');setTimeout(()=>el.classList.remove('is-edit-selected'),650)}
     };
     el.onpointerup=finish;el.onpointercancel=finish;
     el.onclick=e=>{clearTimeout(hold);if(homeEdit){e.preventDefault();e.stopPropagation()}}
@@ -869,14 +889,14 @@ function bind(){
   ensureIOSTouchGestures();
   // iOS Safari: delegated navigation keeps widgets/dock tappable even after touch/long-press handlers.
   const phoneRoot=$('.phone');
-  phoneRoot?.addEventListener('click',e=>{if((window.__elsewhereIgnoreClickUntil||0)>Date.now()){e.preventDefault();e.stopPropagation();return;}const x=e.target.closest?.('[data-open]');if(!x)return;if(homeEdit&&x.closest('.phone-app-grid'))return;e.preventDefault();e.stopPropagation();open(x.dataset.open)},true);
+  phoneRoot?.addEventListener('click',e=>{if((window.__elsewhereIgnoreClickUntil||0)>Date.now()){e.preventDefault();e.stopPropagation();return;}const x=e.target.closest?.('[data-open]');if(!x)return;if(homeEdit&&x.closest('.home-page')){e.preventDefault();e.stopPropagation();return;}e.preventDefault();e.stopPropagation();open(x.dataset.open)},true);
   phoneOSBind();
   $$('[data-passcode-open]').forEach(x=>x.onclick=()=>{lockStage='passcode';passcodeBuffer='';render()});
   $('[data-passcode-back]')?.addEventListener('click',()=>{lockStage='welcome';passcodeBuffer='';render()});
   $$('[data-passcode-key]').forEach(x=>x.onclick=()=>{if(passcodeBuffer.length>=4)return;passcodeBuffer+=x.dataset.passcodeKey;updatePasscodeDots();if(passcodeBuffer.length===4)setTimeout(checkPasscode,90)});
   $('[data-passcode-delete]')?.addEventListener('click',()=>{passcodeBuffer=passcodeBuffer.slice(0,-1);updatePasscodeDots()});
   $$('[data-home]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();open('home')});
-  $$('[data-open]').forEach(x=>x.onclick=e=>{e.stopPropagation();if(homeEdit&&x.closest('.phone-app-grid'))return;open(x.dataset.open)});
+  $$('[data-open]').forEach(x=>x.onclick=e=>{e.stopPropagation();if(homeEdit&&x.closest('.home-page')){e.preventDefault();e.stopPropagation();return;}open(x.dataset.open)});
   const homePages=$('#homePages'); if(homePages){
     requestAnimationFrame(()=>{homePages.scrollLeft=homePage*homePages.clientWidth});
     let raf=0, snapTimer=0, swipe=null;

@@ -1,13 +1,12 @@
-# Elsewhere v2.7 — Home Studio
+# Elsewhere v2.8 — Home Reset
 
-- Rebuilt two-page launcher inspired by custom mini-phone / widget layouts.
-- Native horizontal paging, uniform app icons, balanced widgets across Home 01 / Home 02.
-- Long-press edit mode with obvious drag ghost, drop targets and folder merge.
-- Drag one app onto the center of another to create a folder; rename folders inside the folder sheet.
-- Widget delete + edit controls work directly in edit mode.
-- Add Page, Add Widget, Wallpaper Studio and New Folder live in one edit palette.
-- Wallpaper Studio supports current-page, global wallpaper, clearing page override and restoring theme background.
-- Gemini + persistent chats from v2.5+ retained.
+- Home rebuilt around a stable mini-phone layout: hero widget, two utility widgets, then a normal 4-column app grid.
+- Home 02 keeps compact widgets above a normal app grid.
+- Repairs stale launcher/folder references so apps do not disappear.
+- Edit mode no longer opens widgets accidentally: tapping while editing never navigates, and a non-drag widget tap no longer opens the widget editor automatically.
+- Widget delete/edit controls are larger and touch-friendly.
+- Dragging uses a stronger floating ghost and clearer drop/folder targets.
+- Existing custom widgets, app order, folders, wallpaper, Gemini, chats and lock settings are preserved.
 
 Run:
 ```powershell
