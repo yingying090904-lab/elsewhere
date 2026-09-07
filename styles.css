@@ -1375,3 +1375,140 @@ body{position:fixed!important;inset:0!important;margin:0!important;overflow:hidd
 .concept-home.home-edit .widget-edit-controls,.concept-home.home-edit .home-drag-handle{z-index:8!important}.concept-home.home-edit .home-widget,.concept-home.home-edit .app-icon{transition:opacity .12s ease,transform .12s ease,box-shadow .12s ease!important}.concept-home.home-edit .is-drag-source{opacity:.22!important}.concept-home.home-edit .is-drop-target{outline:2px solid var(--accent)!important;outline-offset:3px!important}
 
 @media(max-height:760px){.concept-home-head{height:66px!important}.concept-home-head h2{font-size:31px!important}.concept-subline{display:none!important}.concept-widget-grid{grid-auto-rows:70px!important;gap:8px!important}.concept-widget-grid .home-widget{padding:10px 12px!important}.concept-widget-grid .home-widget b{font-size:19px!important}.concept-app-grid{gap:10px 8px!important}.concept-app-grid .app-visual{width:44px!important;height:44px!important;min-width:44px!important}.concept-dock{height:64px!important}.concept-home .home-page-dots{bottom:calc(90px + env(safe-area-inset-bottom))!important}}
+
+/* =========================================================
+   v3.0 — Reference Home / stable edit interactions
+   ========================================================= */
+:root{--v30-card:color-mix(in srgb,var(--paper) 91%,white 9%);--v30-line:color-mix(in srgb,var(--ink) 12%,transparent)}
+
+@media (max-width:700px){
+  html,body,#app{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;min-height:100%!important;overflow:hidden!important;background:var(--wallpaper)!important}
+  .shell,.phone{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;background:var(--wallpaper)!important;overflow:hidden!important}
+}
+
+/* Home follows the compact reference: widget hierarchy first, then an honest 4×2 app grid. */
+.concept-home-page{padding:calc(env(safe-area-inset-top) + 14px) 22px calc(env(safe-area-inset-bottom) + 128px)!important}
+.concept-home-head{height:62px!important;min-height:62px!important;margin:0 0 9px!important;padding:0 0 10px!important;align-items:flex-end!important}
+.concept-home-head small{font-size:8px!important;letter-spacing:.2em!important;margin-bottom:4px!important}
+.concept-home-head h2{font:italic 31px/.9 Georgia,"Times New Roman",serif!important;letter-spacing:-.035em!important}
+.concept-home-head.is-later h2{font:500 10px/1.2 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif!important;letter-spacing:.17em!important;text-transform:uppercase!important;color:var(--muted)!important}
+.concept-home-actions{padding-bottom:0!important}.concept-home-actions>span{display:none!important}
+.concept-home .home-plus{width:34px!important;height:34px!important;min-width:34px!important;font-size:23px!important;background:color-mix(in srgb,var(--paper) 88%,transparent)!important}
+.concept-subline{height:22px!important;margin:0 0 8px!important}.concept-subline span{font-size:8px!important}.concept-subline em{font-size:9px!important}
+
+.concept-widget-grid{grid-auto-rows:76px!important;gap:9px!important;margin:0 0 12px!important}
+.concept-widget-grid .home-widget{padding:11px 13px!important;border-radius:18px!important;background:var(--v30-card)!important;box-shadow:0 7px 18px rgba(70,43,55,.065)!important}
+.concept-widget-grid .home-widget[data-widget-size="4x2"]{grid-row:span 1!important}
+.concept-widget-grid .home-widget[data-widget-size="2x2"]{grid-row:span 1!important}
+.concept-widget-grid .home-widget small{font-size:7.5px!important;margin-bottom:4px!important}.concept-widget-grid .home-widget b{font-size:20px!important}.concept-widget-grid .home-widget span{font-size:9px!important;-webkit-line-clamp:1!important}
+.concept-widget-grid .hw-thomas{grid-column:1/-1!important;grid-row:span 1!important;padding-right:72px!important;justify-content:center!important}
+.concept-widget-grid .hw-thomas:before{width:40px!important;height:40px!important;right:15px!important;top:50%!important;transform:translateY(-50%)!important;font-size:22px!important}
+.concept-widget-grid .hw-profile{grid-column:1/-1!important;grid-row:span 1!important;min-height:76px!important}
+.concept-widget-grid .hw-profile>img,.concept-widget-grid .hw-profile>i{width:45px!important;height:45px!important;min-width:45px!important}
+.concept-home-other .concept-widget-grid .hw-profile,.concept-home-other .concept-widget-grid .hw-quote,.concept-home-other .concept-widget-grid .hw-custom{grid-row:span 1!important}
+
+.concept-apps{margin-top:0!important;padding-top:10px!important;border-top:1px solid var(--v30-line)!important}
+.concept-app-grid{grid-template-columns:repeat(4,1fr)!important;grid-template-rows:repeat(2,72px)!important;grid-auto-rows:72px!important;gap:8px 10px!important;overflow:visible!important}
+.concept-app-grid .app-icon.tumblr-app{height:72px!important;justify-content:flex-start!important;gap:5px!important}
+.concept-app-grid .app-visual{width:45px!important;height:45px!important;min-width:45px!important;border-radius:13px!important}
+.concept-app-grid .default-star{font-size:19px!important}.concept-app-grid .app-copy b{font-size:9.5px!important;line-height:1.1!important}
+.concept-home .home-page-dots{bottom:calc(98px + env(safe-area-inset-bottom))!important;height:20px!important;padding:5px 9px!important}
+.concept-dock{left:22px!important;right:22px!important;height:64px!important;bottom:calc(14px + env(safe-area-inset-bottom))!important;border-radius:22px!important}.concept-dock button{font-size:10px!important}
+
+/* No page content may sit under the dock. */
+.concept-home-page .concept-apps{max-height:160px!important;overflow:hidden!important}
+
+/* Edit mode: no wiggle, no accidental navigation, dedicated grip is the only draggable surface. */
+.home.home-edit .home-widget,.home.home-edit .app-icon{animation:none!important;transform:none!important;transition:opacity .14s ease,box-shadow .18s ease,outline-color .18s ease!important}
+.home.home-edit .home-widget[data-open]::after,.home.home-edit .app-icon[data-open]::after{content:""!important;position:absolute!important;inset:0!important;z-index:5!important;background:transparent!important}
+.home.home-edit .widget-edit-controls,.home.home-edit .home-drag-handle{z-index:20!important}
+.home-drag-handle,.widget-drag-handle{width:28px!important;height:28px!important;grid-template-columns:repeat(2,3px)!important;grid-auto-rows:3px!important;gap:3px!important;background:color-mix(in srgb,var(--ink) 72%,transparent)!important;box-shadow:0 6px 16px rgba(45,27,36,.16)!important}
+.home-drag-handle i,.widget-drag-handle i{width:3px!important;height:3px!important}
+.app-drag-handle{top:-6px!important;right:-5px!important}
+.widget-edit-controls{top:-8px!important;right:-7px!important;gap:5px!important;background:transparent!important}
+.widget-edit-controls>.widget-drag-handle{flex:0 0 28px!important}
+.widget-more-button{width:28px!important;height:28px!important;min-width:28px!important;border-radius:50%!important;padding:0!important;font-size:14px!important;background:color-mix(in srgb,var(--accent) 86%,transparent)!important;color:white!important;border:1px solid rgba(255,255,255,.85)!important;box-shadow:0 6px 16px rgba(45,27,36,.14)!important}
+.home.home-edit .home-widget{outline:1px dashed color-mix(in srgb,var(--accent) 28%,transparent)!important;outline-offset:3px!important}
+.home.home-edit .app-visual{outline:1px dashed color-mix(in srgb,var(--accent) 24%,transparent)!important;outline-offset:3px!important}
+.home.home-edit .is-drag-source{opacity:.18!important;box-shadow:none!important}
+.home.home-edit .is-drop-target{outline:2px solid var(--accent)!important;outline-offset:4px!important}
+.drag-ghost{position:fixed!important;left:0!important;top:0!important;z-index:9999!important;pointer-events:none!important;will-change:transform!important;transition:none!important;opacity:.96!important;filter:none!important;box-shadow:0 22px 52px rgba(46,28,37,.22)!important}
+.ew-dragging *{cursor:grabbing!important}
+
+/* Widget deletion is deliberately moved out of the canvas. */
+.compact-action-sheet{max-width:420px!important}.widget-action-buttons{display:grid!important;gap:8px!important;padding:10px 0 4px!important}.widget-action-buttons button{min-height:48px!important;border-radius:14px!important;background:color-mix(in srgb,var(--paper) 82%,white 18%)!important;border:1px solid var(--v30-line)!important;color:var(--ink)!important;font-size:13px!important}.widget-action-buttons .danger-soft{color:#a43f58!important;background:color-mix(in srgb,#a43f58 7%,var(--paper))!important}
+
+/* Thomas: one real viewport. The composer participates in layout instead of covering messages. */
+.app-view:has(.thomas-page){display:grid!important;grid-template-rows:auto minmax(0,1fr) auto!important;height:100%!important;min-height:0!important;padding:0!important;overflow:hidden!important;background:var(--wallpaper)!important}
+.app-view:has(.thomas-page)>.page-head{position:relative!important;top:auto!important;grid-row:1!important;min-height:78px!important;padding:calc(env(safe-area-inset-top) + 10px) 18px 10px!important;background:color-mix(in srgb,var(--paper) 94%,transparent)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.app-view:has(.thomas-page)>.thomas-page{grid-row:2!important;min-height:0!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important;padding:10px 18px 18px!important}
+.thomas-page>.messages{overflow:visible!important;min-height:0!important;padding-bottom:8px!important}
+.app-view:has(.thomas-page)>.composer{grid-row:3!important;position:relative!important;left:auto!important;right:auto!important;bottom:auto!important;margin:7px 18px calc(10px + env(safe-area-inset-bottom))!important;padding:7px!important;min-height:58px!important;border-radius:20px!important;background:color-mix(in srgb,var(--paper) 94%,transparent)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;box-shadow:0 10px 26px rgba(62,38,49,.11)!important}
+.app-view:has(.thomas-page)>.composer textarea{min-height:44px!important;max-height:82px!important;font-size:12px!important;line-height:1.4!important}
+.app-view:has(.thomas-page)>.composer .send-text{width:66px!important;min-width:66px!important;border-radius:13px!important;font-size:13px!important}
+
+/* Remove iOS white strip below the app. */
+@media(max-width:700px){body:before{content:"";position:fixed;left:0;right:0;bottom:0;height:max(42px,env(safe-area-inset-bottom));background:var(--wallpaper);z-index:-1}}
+
+@media(max-height:760px){
+ .concept-home-page{padding-top:calc(env(safe-area-inset-top) + 9px)!important}
+ .concept-home-head{height:52px!important;min-height:52px!important}.concept-home-head h2{font-size:27px!important}
+ .concept-widget-grid{grid-auto-rows:64px!important;gap:7px!important;margin-bottom:9px!important}.concept-widget-grid .home-widget{padding:9px 11px!important}.concept-widget-grid .home-widget b{font-size:17px!important}
+ .concept-widget-grid .hw-profile{min-height:64px!important}.concept-widget-grid .hw-profile>img,.concept-widget-grid .hw-profile>i{width:38px!important;height:38px!important;min-width:38px!important}
+ .concept-app-grid{grid-template-rows:repeat(2,64px)!important;grid-auto-rows:64px!important;gap:5px 8px!important}.concept-app-grid .app-icon.tumblr-app{height:64px!important}.concept-app-grid .app-visual{width:41px!important;height:41px!important;min-width:41px!important}.concept-dock{height:58px!important}.concept-home .home-page-dots{bottom:calc(86px + env(safe-area-inset-bottom))!important}
+}
+
+/* ============================================================
+   v3.0.1 — polished reference home
+   stable edit shelf, smoother handle drag, safer controls,
+   tighter home composition, keyboard-safe Thomas composer
+   ============================================================ */
+:root{--v301-line:color-mix(in srgb,var(--ink) 11%,transparent);--v301-card:color-mix(in srgb,var(--paper) 94%,white 6%);--v301-soft:color-mix(in srgb,var(--accent) 8%,transparent)}
+
+/* Home composition — closer to the reference: useful, compact, never clipped. */
+.concept-home-page{display:grid!important;grid-template-rows:auto auto auto minmax(0,1fr)!important;align-content:start!important;row-gap:0!important;padding:calc(env(safe-area-inset-top) + 12px) 22px calc(env(safe-area-inset-bottom) + 126px)!important}
+.concept-home-head{height:58px!important;min-height:58px!important;margin:0 0 8px!important;padding:0 0 10px!important}
+.concept-home-head h2{font-size:30px!important}.concept-home-head.is-later h2{font:600 9px/1.2 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif!important;letter-spacing:.19em!important;color:var(--muted)!important}
+.concept-subline{margin:0 0 9px!important;min-height:22px!important}
+.concept-widget-grid{grid-auto-rows:66px!important;gap:8px!important;margin:0 0 10px!important;align-self:start!important}
+.concept-widget-grid .home-widget{min-height:66px!important;padding:10px 12px!important;border-radius:18px!important;background:var(--v301-card)!important;border:1px solid rgba(255,255,255,.76)!important;box-shadow:0 7px 17px rgba(69,43,54,.055)!important}
+.concept-widget-grid .home-widget small{font-size:8px!important;margin-bottom:3px!important}.concept-widget-grid .home-widget b{font-size:19px!important}.concept-widget-grid .home-widget span{font-size:9px!important;margin-top:3px!important}
+.concept-home-one .concept-widget-grid .hw-thomas{grid-row:span 2!important;min-height:140px!important}.concept-home-one .concept-widget-grid .hw-thomas b{font-size:25px!important}
+.concept-home-other .concept-widget-grid .hw-profile{grid-column:1/-1!important;grid-row:span 2!important;min-height:140px!important;display:flex!important;align-items:center!important;gap:14px!important}.concept-home-other .concept-widget-grid .hw-profile>img,.concept-home-other .concept-widget-grid .hw-profile>i{width:56px!important;height:56px!important;min-width:56px!important}
+.concept-apps{align-self:end!important;margin:0!important;padding-top:9px!important;border-top:1px solid var(--v301-line)!important;min-height:148px!important;max-height:none!important;overflow:visible!important}
+.concept-app-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:repeat(2,68px)!important;grid-auto-rows:68px!important;gap:6px 8px!important;align-items:start!important;overflow:visible!important}
+.concept-app-grid .app-icon.tumblr-app{height:68px!important;gap:5px!important}.concept-app-grid .app-visual{width:44px!important;height:44px!important;min-width:44px!important;border-radius:13px!important}.concept-app-grid .default-star{font-size:18px!important}.concept-app-grid .app-copy b{font-size:10px!important}
+.concept-dock{height:62px!important;left:22px!important;right:22px!important;bottom:calc(14px + env(safe-area-inset-bottom))!important;border-radius:25px!important}.concept-home .home-page-dots{bottom:calc(82px + env(safe-area-inset-bottom))!important}
+
+/* Edit mode — no wiggle, no accidental app/widget opens, one stable tool shelf. */
+.concept-home.home-edit .concept-dock{opacity:.18!important;pointer-events:none!important;transform:translateY(10px)!important}
+.concept-home.home-edit .home-page-dots{bottom:calc(120px + env(safe-area-inset-bottom))!important}
+.concept-home.home-edit .home-widget,.concept-home.home-edit .app-icon{animation:none!important;transition:opacity .14s ease,box-shadow .14s ease,outline-color .14s ease!important}
+.concept-home.home-edit .home-widget{outline:1px dashed color-mix(in srgb,var(--accent) 22%,transparent)!important;outline-offset:3px!important}
+.concept-home.home-edit .app-visual{outline:1px dashed color-mix(in srgb,var(--accent) 20%,transparent)!important;outline-offset:3px!important}
+.home-edit-shelf{position:absolute;z-index:100;left:14px;right:14px;bottom:calc(12px + env(safe-area-inset-bottom));padding:10px 11px 9px;border-radius:24px;background:color-mix(in srgb,var(--paper) 96%,transparent);border:1px solid rgba(255,255,255,.86);box-shadow:0 20px 48px rgba(54,34,43,.17);display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px}
+.home-edit-status{min-width:0;padding-left:4px}.home-edit-status span{display:block;font-size:11px;font-weight:650;color:var(--ink)}.home-edit-status small{display:block;margin-top:2px;font-size:8px;color:var(--muted)}
+.home-edit-tools{display:flex;gap:5px}.home-edit-tools button{width:48px;height:49px;border-radius:15px;background:var(--v301-soft);border:1px solid color-mix(in srgb,var(--accent) 10%,transparent);display:grid;place-items:center;padding:4px;color:var(--ink)}.home-edit-tools button b{font-size:16px;line-height:1;font-weight:500}.home-edit-tools button span{font-size:7px;color:var(--muted)}.home-edit-tools .edit-done{background:var(--accent)!important;color:white!important}.home-edit-tools .edit-done span{color:rgba(255,255,255,.9)!important}
+.home-drag-handle,.widget-drag-handle{touch-action:none!important;-webkit-user-select:none!important;user-select:none!important;transition:transform .12s ease,background .12s ease!important}.home-drag-handle.is-held,.widget-drag-handle.is-held{transform:scale(.92)!important;background:var(--accent)!important}
+.app-drag-handle{top:-5px!important;right:-4px!important;width:26px!important;height:26px!important}.widget-edit-controls{top:-7px!important;right:-6px!important;gap:4px!important}.widget-edit-controls>.widget-drag-handle,.widget-more-button{width:26px!important;height:26px!important;min-width:26px!important}
+.widget-more-button{font-size:12px!important;background:color-mix(in srgb,var(--ink) 68%,transparent)!important}
+.is-drag-source{opacity:.16!important;outline:2px dashed color-mix(in srgb,var(--accent) 55%,transparent)!important}.is-drop-target{outline:2px solid var(--accent)!important;outline-offset:5px!important;box-shadow:0 0 0 8px color-mix(in srgb,var(--accent) 8%,transparent)!important}
+.drag-ghost{will-change:transform!important;transition:none!important;opacity:.97!important;filter:none!important;box-shadow:0 24px 55px rgba(47,29,38,.24)!important;border-radius:18px!important}.app-drag-ghost{width:70px!important}.widget-drag-ghost{width:min(286px,70vw)!important}
+
+/* Home Studio: clearer actions and safer removal wording. */
+.home-studio-static{max-height:min(760px,88vh)!important}.home-studio-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important;padding:4px 0 10px!important}.home-studio-actions button{min-height:78px!important;border-radius:18px!important;padding:13px!important;text-align:left!important;background:var(--v301-card)!important;border:1px solid var(--v301-line)!important;color:var(--ink)!important}.home-studio-actions button b{font-size:13px!important}.home-studio-actions button span{font-size:9px!important;line-height:1.35!important;margin-top:4px!important;color:var(--muted)!important}.studio-divider{display:flex;align-items:center;gap:8px;margin:8px 0 7px}.studio-divider:after{content:"";height:1px;flex:1;background:var(--v301-line)}.studio-divider span{font:700 8px/1 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;letter-spacing:.18em;color:var(--muted)}
+.widget-manager-remove{min-width:52px!important;border-radius:999px!important;font-size:9px!important;color:#9d4055!important;background:color-mix(in srgb,#a43f58 7%,var(--paper))!important}
+
+/* Thomas — content never hides under the composer; composer behaves well with keyboard. */
+.app-view:has(.thomas-page){grid-template-rows:auto minmax(0,1fr) auto!important;min-height:0!important;height:100%!important}
+.app-view:has(.thomas-page)>.thomas-page{padding:10px 18px 14px!important;scroll-padding-bottom:24px!important;overscroll-behavior-y:contain!important}
+.app-view:has(.thomas-page)>.composer.thomas-composer{display:grid!important;grid-template-columns:42px minmax(0,1fr) 38px 62px!important;gap:6px!important;align-items:end!important;margin:6px 14px calc(8px + env(safe-area-inset-bottom))!important;padding:7px!important;min-height:58px!important;border-radius:21px!important;background:color-mix(in srgb,var(--paper) 96%,transparent)!important}
+.thomas-composer textarea{width:100%!important;min-width:0!important;min-height:42px!important;max-height:90px!important;border-radius:14px!important;padding:10px 9px!important;background:color-mix(in srgb,var(--paper) 80%,white 20%)!important}
+.composer-plus,.composer-attach{height:42px!important;border-radius:14px!important;border:1px solid color-mix(in srgb,var(--accent) 11%,transparent)!important;background:var(--v301-soft)!important;color:var(--accent)!important;font-size:19px!important;padding:0!important}.composer-attach{font-size:15px!important}.thomas-composer .send-text{height:42px!important;min-width:62px!important;border-radius:14px!important}
+
+/* Small phone refinements. */
+@media(max-width:390px){
+ .concept-home-page{padding-left:18px!important;padding-right:18px!important}.concept-widget-grid{gap:7px!important}.concept-app-grid{gap:5px 6px!important}.concept-app-grid .app-visual{width:42px!important;height:42px!important;min-width:42px!important}.home-edit-shelf{left:9px;right:9px}.home-edit-status{display:none}.home-edit-shelf{grid-template-columns:1fr}.home-edit-tools{justify-content:space-between}.home-edit-tools button{width:23%}
+ .app-view:has(.thomas-page)>.composer.thomas-composer{grid-template-columns:38px minmax(0,1fr) 34px 58px!important;margin-left:10px!important;margin-right:10px!important}.composer-plus,.composer-attach{height:40px!important}.thomas-composer .send-text{height:40px!important;min-width:58px!important}
+}
+@media(max-height:760px){.concept-widget-grid{grid-auto-rows:60px!important}.concept-home-one .concept-widget-grid .hw-thomas,.concept-home-other .concept-widget-grid .hw-profile{min-height:126px!important}.concept-app-grid{grid-template-rows:repeat(2,62px)!important;grid-auto-rows:62px!important}.concept-app-grid .app-icon.tumblr-app{height:62px!important}.concept-app-grid .app-visual{width:40px!important;height:40px!important;min-width:40px!important}.concept-home .home-page-dots{bottom:calc(78px + env(safe-area-inset-bottom))!important}}

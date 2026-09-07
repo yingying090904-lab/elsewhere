@@ -1,9 +1,13 @@
-# Elsewhere v2.9 — Concept Home
+# Elsewhere v3.0.1 — Polished Home
 
-主页按已确认的 concept board 重做：紧凑 editorial header、hero widget、两张小卡、4×2 标准 App grid、固定 dock。保留 Gemini、聊天存档、锁屏、壁纸与整理主页。
+A refinement pass on the v3.0 reference build: tighter two-page composition, safer handle-only drag with activation threshold, a fixed edit shelf, protected widget removal, Home Studio cleanup, and a keyboard-safe Thomas composer.
 
-运行：
-```
+Run:
+```bash
 npm install
 npm start
 ```
+
+Render environment:
+- `GEMINI_API_KEY`
+- optional `GEMINI_MODEL`

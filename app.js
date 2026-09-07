@@ -2,7 +2,7 @@ const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const KEY = 'elsewhere-state';
 const LEGACY_KEYS = ['elsewhere-v242-state','elsewhere-v24-state','elsewhere-v23-state','elsewhere-v22-state','elsewhere-v21-state','elsewhere-v20-state'];
-const VERSION = '2.9.0-concept-home';
+const VERSION = '3.0.1-polished-home';
 
 const today = () => new Date().toISOString().slice(0,10);
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -142,6 +142,22 @@ if(!S.custom.v28HomeReset){
   S.custom.v28HomeReset=true;
   save();
 }
+// v3.0: normalize the reference layout once. Keep user-created widgets, but place the stock set deliberately.
+if(!S.custom.v30ReferenceLayout){
+  const stock={
+    'hw-thomas':{page:0,size:'4x2'},
+    'hw-clock':{page:0,size:'2x1'},
+    'hw-weather':{page:0,size:'2x1'},
+    'hw-todo':{page:1,size:'2x1'},
+    'hw-study':{page:1,size:'2x1'}
+  };
+  (S.custom.homeWidgets||[]).forEach(w=>{const v=stock[w.id];if(v){w.page=v.page;w.size=v.size;}});
+  if(!(S.custom.homeWidgets||[]).some(w=>w.type==='profile')) S.custom.homeWidgets.push({id:'hw-profile',type:'profile',page:1,size:'4x2'});
+  else { const pw=(S.custom.homeWidgets||[]).find(w=>w.type==='profile'); if(pw){pw.page=1;pw.size='4x2';} }
+  S.custom.homePageCount=Math.max(2,Number(S.custom.homePageCount)||2);
+  S.custom.v30ReferenceLayout=true;
+  save();
+}
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){console.warn('Elsewhere save failed',e);} }
 window.addEventListener('pagehide',save); window.addEventListener('beforeunload',save); document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
 function ch(id){ return S.characters.find(x=>x.id===id); }
@@ -260,7 +276,7 @@ function homeWidgetHtml(w){
   const due=S.todos.filter(x=>!x.done).length;
   const note=S.notes[0], cd=(S.countdowns||[])[0], mood=(S.moods||[])[0];
   const common=`data-home-widget-id="${esc(w.id)}" data-widget-type="${esc(w.type)}" data-widget-page="${Number(w.page)||0}" data-widget-size="${esc(w.size||'2x1')}"`;
-  const controls=homeEdit?`<div class="widget-edit-controls"><button type="button" class="widget-drag-handle" data-widget-drag-handle aria-label="拖动组件"><i></i><i></i><i></i><i></i></button><button type="button" data-widget-config="${esc(w.id)}" aria-label="编辑组件">•••</button><button type="button" data-widget-delete="${esc(w.id)}" aria-label="删除组件">×</button></div>`:'';
+  const controls=homeEdit?`<div class="widget-edit-controls"><button type="button" class="widget-drag-handle" data-widget-drag-handle aria-label="拖动组件"><i></i><i></i><i></i><i></i></button><button type="button" class="widget-more-button" data-widget-config="${esc(w.id)}" aria-label="组件设置">•••</button></div>`:'';
   const frame=(cls,body,open='')=>`<article class="home-widget ${cls}" ${common} ${open?`data-open="${open}" role="button" tabindex="0"`:''}>${body}${controls}</article>`;
   if(w.type==='clock') return frame('hw-clock',`<small>NOW</small><b>${fmtTime()}</b><span>${new Date().toLocaleDateString('zh-CN',{month:'numeric',day:'numeric'})}</span>`);
   if(w.type==='thomas') return frame('hw-thomas',`<small>THOMAS</small><b>${esc(S.settings.assistantName)}</b><span>${esc((S.notifications?.[0]?.text||'I am here.').slice(0,42))}</span>`,'thomas');
@@ -283,7 +299,7 @@ function widgetManagerHtml(page='all'){
   const all=(S.custom.homeWidgets||[]);
   const current=page==='all'?all:all.filter(w=>(Number(w.page)||0)===Number(page));
   const pageOptions=[0,1,2,3,4].map(i=>`<option value="${i}" ${String(page)===String(i)?'selected':''}>${i===0?'Today':`Page ${i}`}</option>`).join('');
-  return `<section class="widget-manager"><div class="widget-manager-toolbar"><label>显示页面<select data-widget-manager-page><option value="all" ${page==='all'?'selected':''}>全部页面</option>${pageOptions}</select></label><button data-widget-library-open>＋ Add Widget</button></div><div class="widget-current">${current.map((w,i)=>`<div><span><b>${esc(HOME_WIDGET_TYPES[w.type]||w.type)}</b><small>${w.type==='custom'?esc(w.title||'custom text'):`${(Number(w.page)||0)===0?'Today':`Page ${Number(w.page)||0}`} · ${esc(w.size||'2x1')}`}</small></span><button data-widget-edit="${esc(w.id)}">编辑</button><button data-widget-remove="${esc(w.id)}">×</button></div>`).join('')||'<p>No widgets on this page yet.</p>'}</div></section>`;
+  return `<section class="widget-manager"><div class="widget-manager-toolbar"><label>显示页面<select data-widget-manager-page><option value="all" ${page==='all'?'selected':''}>全部页面</option>${pageOptions}</select></label><button data-widget-library-open>＋ Add Widget</button></div><div class="widget-current">${current.map((w,i)=>`<div><span><b>${esc(HOME_WIDGET_TYPES[w.type]||w.type)}</b><small>${w.type==='custom'?esc(w.title||'custom text'):`${(Number(w.page)||0)===0?'Today':`Page ${Number(w.page)||0}`} · ${esc(w.size||'2x1')}`}</small></span><button data-widget-edit="${esc(w.id)}">编辑</button><button class="widget-manager-remove" data-widget-remove="${esc(w.id)}">移除</button></div>`).join('')||'<p>No widgets on this page yet.</p>'}</div></section>`;
 }
 function widgetLibrarySheet(page=homePage){
   const wrap=document.createElement('div'); wrap.className='ew-modal-wrap widget-library-sheet';
@@ -351,14 +367,17 @@ function homeEditPaletteHtml(){
 
 function homeStudioSheet(page=homePage){
   const wrap=document.createElement('div'); wrap.className='ew-modal-wrap home-studio-static-wrap';
-  wrap.innerHTML=`<div class="ew-modal-scrim" data-home-studio-close></div><section class="ew-dialog ew-sheet home-studio-static"><div class="sheet-handle"></div><div class="sheet-title"><div><small>HOME SCREEN</small><h3>Customize</h3><p>拖动只从小把手开始，不会误开 App</p></div><button data-home-studio-close>×</button></div><div class="static-home-actions"><button data-static-rearrange><b>整理主页</b><span>进入拖动模式 · App / Widget 都可移动</span></button><button data-static-add-widget><b>＋ 添加 Widget</b><span>选择组件并放到当前页</span></button><button data-static-wallpaper><b>更换壁纸</b><span>当前页或全部主页</span></button><button data-static-add-page><b>增加页面</b><span>新增一个主页</span></button></div>${widgetManagerHtml('all')}</section>`;
+  const canRemovePage=(Number(S.custom.homePageCount)||2)>2 && page>1 && !pageWidgets(page).length;
+  wrap.innerHTML=`<div class="ew-modal-scrim" data-home-studio-close></div><section class="ew-dialog ew-sheet home-studio-static"><div class="sheet-handle"></div><div class="sheet-title"><div><small>HOME STUDIO</small><h3>主页</h3><p>移动、组件与壁纸集中在这里，不让正常点击和编辑互相打架。</p></div><button data-home-studio-close aria-label="关闭">×</button></div><div class="static-home-actions home-studio-actions"><button data-static-rearrange><b>整理主页</b><span>只从四点把手拖动；其余区域不会启动移动</span></button><button data-static-add-widget><b>添加 Widget</b><span>选择类型、尺寸与页面</span></button><button data-static-wallpaper><b>壁纸与主题</b><span>只换这一页，或应用到全部页面</span></button><button data-static-add-page><b>增加页面</b><span>新增一页干净的 Home</span></button>${canRemovePage?'<button data-static-remove-page><b>删除当前空页面</b><span>只会删除没有 Widget 的最后扩展页面</span></button>':''}<button data-static-reset-home><b>整理成推荐排版</b><span>恢复两页基础布局，不删除你的资料</span></button></div><div class="studio-divider"><span>WIDGETS</span></div>${widgetManagerHtml('all')}</section>`;
   uiLayer().appendChild(wrap); requestAnimationFrame(()=>wrap.classList.add('show'));
   const close=()=>{wrap.classList.remove('show');setTimeout(()=>wrap.remove(),140)};
   wrap.querySelectorAll('[data-home-studio-close]').forEach(x=>x.onclick=close);
-  $('[data-static-rearrange]',wrap)?.addEventListener('click',()=>{close();setTimeout(()=>{homeEdit=true;render();uiToast('整理模式：按住小把手拖动，点完成退出')},150)});
+  $('[data-static-rearrange]',wrap)?.addEventListener('click',()=>{close();setTimeout(()=>{homeEdit=true;render();uiToast('整理模式已开启 · 按住四点把手移动')},150)});
   $('[data-static-add-widget]',wrap)?.addEventListener('click',()=>widgetLibrarySheet(page));
   $('[data-static-wallpaper]',wrap)?.addEventListener('click',()=>wallpaperStudio(page));
   $('[data-static-add-page]',wrap)?.addEventListener('click',()=>{S.custom.homePageCount=Math.max(2,Number(S.custom.homePageCount)||2)+1;save();close();render();uiToast('已增加一个主页')});
+  $('[data-static-remove-page]',wrap)?.addEventListener('click',async()=>{const ok=await uiConfirm({title:'删除这一页？',message:'这一页没有 Widget。删除后 App 会自动回到前面的页面。',confirmText:'删除',cancelText:'取消',danger:true});if(!ok)return;S.custom.homePageCount=Math.max(2,(Number(S.custom.homePageCount)||2)-1);homePage=Math.min(homePage,S.custom.homePageCount-1);save();close();render();});
+  $('[data-static-reset-home]',wrap)?.addEventListener('click',async()=>{const ok=await uiConfirm({title:'恢复推荐排版？',message:'会重新排列主页 App 与内置 Widget，但不会删除聊天、角色、日记或其他资料。',confirmText:'恢复排版',cancelText:'取消'});if(!ok)return;S.custom.homeLayout=orderedApps().map(a=>a[0]);S.custom.homePageCount=2;const stock={'hw-thomas':{page:0,size:'4x2'},'hw-clock':{page:0,size:'2x1'},'hw-weather':{page:0,size:'2x1'},'hw-todo':{page:1,size:'2x1'},'hw-study':{page:1,size:'2x1'},'hw-profile':{page:1,size:'4x2'}};(S.custom.homeWidgets||[]).forEach(w=>{if(stock[w.id])Object.assign(w,stock[w.id])});save();close();render();uiToast('推荐排版已恢复')});
   bindWidgetControls(wrap);
 }
 
@@ -379,7 +398,7 @@ function home(){
   const widgetZone=pi=>`<section class="home-widget-grid concept-widget-grid" data-widget-zone="${pi}">${homeWidgetsHtml(pi)}</section>`;
   const appGrid=(items)=>`<section class="concept-apps"><div class="phone-app-grid classic-app-grid concept-app-grid">${items.map(homeEntry).join('')}</div></section>`;
   const editTop=homeEdit?`<button class="home-done concept-done" data-home-edit-done>完成</button>`:'';
-  const pageHead=(pi,title,eyebrow)=>`<header class="concept-home-head"><div><small>${esc(eyebrow)}</small><h2>${esc(title)}</h2></div><div class="concept-home-actions"><span>${pi===0?day:`HOME ${String(pi+1).padStart(2,'0')}`}</span><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${editTop}</div></header>`;
+  const pageHead=(pi,title,eyebrow)=>`<header class="concept-home-head ${pi===0?'is-first':'is-later'}"><div><small>${pi===0?day:`HOME ${String(pi+1).padStart(2,'0')}`}</small><h2>${pi===0?esc(title):esc(eyebrow)}</h2></div><div class="concept-home-actions"><button class="home-plus" data-home-edit-open aria-label="编辑主页">＋</button>${editTop}</div></header>`;
   const pageShell=(pi,inner)=>`<section class="home-page concept-home-page ${pi===0?'concept-home-one':'concept-home-other'}" data-app-page="${pi}" ${pageWallpaperStyle(pi)}>${inner}</section>`;
 
   const first=pageShell(0,`
@@ -390,7 +409,7 @@ function home(){
 
   const others=appPages.slice(1).map((items,i)=>{
     const pi=i+1;
-    const title=pi===1?'Daily room':`Elsewhere ${String(pi+1).padStart(2,'0')}`;
+    const title=`HOME ${String(pi+1).padStart(2,'0')}`;
     const eyebrow=pi===1?'WIDGETS & APPS':'YOUR LITTLE ROOMS';
     return pageShell(pi,`
       ${pageHead(pi,title,eyebrow)}
@@ -399,9 +418,11 @@ function home(){
       ${!items.length&&!pageWidgets(pi).length?'<div class="concept-empty">这一页还是空的。点右上角 ＋ 添加 Widget。</div>':''}`)
   }).join('');
 
+  const editShelf=homeEdit?`<aside class="home-edit-shelf"><div class="home-edit-status"><span>整理主页</span><small>按住四点把手移动</small></div><div class="home-edit-tools"><button data-widget-library-page="${homePage}"><b>＋</b><span>组件</span></button><button data-page-wallpaper><b>▧</b><span>壁纸</span></button><button data-home-add-page><b>□</b><span>页面</span></button><button data-home-edit-done class="edit-done"><b>✓</b><span>完成</span></button></div></aside>`:'';
   return `<section class="home swipe-home concept-home ${homeEdit?'home-edit':''}">
     <div class="home-pages" id="homePages">${first}${others}</div>
     <div class="home-page-dots" aria-label="主页分页">${Array.from({length:totalPages},(_,i)=>`<button data-home-dot="${i}" class="${i===homePage?'active':''}" aria-label="第 ${i+1} 页"></button>`).join('')}</div>
+    ${editShelf}
     <nav class="tumblr-dock text-dock phone-dock concept-dock"><button data-open="messages">消息</button><button data-open="thomas">Thomas</button><button data-open="social">社交</button><button data-open="profile">我</button></nav>
   </section>`;
 }
@@ -415,7 +436,7 @@ function view(k,arg){
 
 function thomasView(){
   const p=S.settings.thomasProfile;
-  return `${header(S.settings.assistantName,'always here for you.','<button class="text-action" data-thomas-style>语气</button><button class="text-action" data-thomas-clear>清空</button>')}<main class="chat-page thomas-page"><div class="assistant-intro"><div class="thomas-portrait">T</div><div><b>${esc(S.settings.assistantName)}</b><p>聊天陪伴 · 生活助手 · 会慢慢学会你的偏好</p><span class="ai-inline-status" id="thomasAIStatus">Gemini · checking…</span></div></div><div class="thomas-tone-chip">温柔 ${p.warmth} · 毒舌 ${p.sass} · 主动 ${p.initiative} · ${p.learn?'正在学习你的反馈':'固定语气'}</div><div class="quick-row"><button data-thomas-quick="帮我看看今天还有什么没做">整理今天</button><button data-thomas-action="mood">记录心情</button><button data-thomas-action="focus">开始专注</button></div><div class="messages" id="thomasMessages">${S.thomas.map(m=>bubble(m,m.role==='assistant'?{name:S.settings.assistantName,initial:'T',color:'#9c7881'}:null)).join('')}</div></main><div class="composer"><textarea id="thomasInput" placeholder="和 Thomas 聊聊，或直接告诉他‘少一点客服腔’…"></textarea><button class="send-text" data-thomas-send>发送</button></div>`;
+  return `${header(S.settings.assistantName,'always here for you.','<button class="text-action" data-thomas-style>语气</button><button class="text-action" data-thomas-clear>清空</button>')}<main class="chat-page thomas-page"><div class="assistant-intro"><div class="thomas-portrait">T</div><div><b>${esc(S.settings.assistantName)}</b><p>聊天陪伴 · 生活助手 · 会慢慢学会你的偏好</p><span class="ai-inline-status" id="thomasAIStatus">Gemini · checking…</span></div></div><div class="thomas-tone-chip">温柔 ${p.warmth} · 毒舌 ${p.sass} · 主动 ${p.initiative} · ${p.learn?'正在学习你的反馈':'固定语气'}</div><div class="quick-row"><button data-thomas-quick="帮我看看今天还有什么没做">整理今天</button><button data-thomas-action="mood">记录心情</button><button data-thomas-action="focus">开始专注</button></div><div class="messages" id="thomasMessages">${S.thomas.map(m=>bubble(m,m.role==='assistant'?{name:S.settings.assistantName,initial:'T',color:'#9c7881'}:null)).join('')}</div></main><div class="composer thomas-composer"><button class="composer-plus" type="button" data-thomas-plus aria-label="更多">＋</button><textarea id="thomasInput" placeholder="和 Thomas 聊聊，或直接告诉他‘少一点客服腔’…"></textarea><button class="composer-attach" type="button" data-thomas-attach aria-label="添加图片">▧</button><button class="send-text" data-thomas-send>发送</button></div>`;
 }
 function bubble(m,c){const body=m.type==='voice'?`<button class="voice-bubble" data-play-voice="${m.id}">▶ ${m.seconds||Math.max(2,Math.min(18,Math.ceil((m.text||'').length/4)))}" <span>${esc(m.text||'语音消息')}</span></button>`:`<div class="bubble">${esc(m.text)}</div>`;const src=m.role==='assistant'&&m.source==='local'?'<em class="message-source">LOCAL</em>':'';return `<div class="msg ${m.role==='user'?'mine':''}">${m.role==='assistant'?avatar(c,'sm'):''}<div>${body}<small>${fmtTime(m.ts)}${src}</small></div></div>`}
 function messagesView(arg){
@@ -759,8 +780,7 @@ function moveLayoutEntry(key,targetKey,before=true){
   const a=S.custom.homeLayout; const i=a.indexOf(key); if(i<0)return; a.splice(i,1); const j=a.indexOf(targetKey); if(j<0){a.push(key);save();return;} a.splice(j+(before?0:1),0,key); save();
 }
 function pageInsertIndex(page){
-  page=Math.max(0,Number(page)||0); if(page===0)return Math.min(8,S.custom.homeLayout.length);
-  return Math.min(S.custom.homeLayout.length,8+page*12);
+  page=Math.max(0,Number(page)||0); return Math.min(S.custom.homeLayout.length,(page+1)*8);
 }
 function moveAppToPage(key,page){
   const a=S.custom.homeLayout; const i=a.indexOf(key); if(i<0)return; a.splice(i,1); const insert=Math.min(a.length,pageInsertIndex(page)); a.splice(insert,0,key); S.custom.homePageCount=Math.max(Number(S.custom.homePageCount)||2,page+1); save();
@@ -769,6 +789,20 @@ function moveAppToPage(key,page){
 function addAppToFolder(key,fid){
   const f=folderById(fid); if(!f||f.apps.includes(key))return; S.custom.homeLayout=S.custom.homeLayout.filter(x=>x!==key); f.apps.push(key); save();
 }
+async function widgetActionSheet(id){
+  const w=(S.custom.homeWidgets||[]).find(x=>x.id===id); if(!w)return;
+  const wrap=document.createElement('div'); wrap.className='ew-modal-wrap widget-action-sheet';
+  wrap.innerHTML=`<div class="ew-modal-scrim" data-widget-action-close></div><section class="ew-dialog ew-sheet compact-action-sheet"><div class="sheet-handle"></div><div class="sheet-title"><div><small>WIDGET</small><h3>${esc(HOME_WIDGET_TYPES[w.type]||w.type)}</h3><p>${(Number(w.page)||0)===0?'Home 01':`Home ${String((Number(w.page)||0)+1).padStart(2,'0')}`}</p></div><button data-widget-action-close>×</button></div><div class="widget-action-buttons"><button data-widget-action-edit>编辑组件</button><button class="danger-soft" data-widget-action-delete>删除组件</button></div></section>`;
+  uiLayer().appendChild(wrap); requestAnimationFrame(()=>wrap.classList.add('show'));
+  const close=()=>{wrap.classList.remove('show');setTimeout(()=>wrap.remove(),140)};
+  wrap.querySelectorAll('[data-widget-action-close]').forEach(x=>x.onclick=close);
+  wrap.querySelector('[data-widget-action-edit]').onclick=()=>{close();setTimeout(()=>editWidgetSheet(id),150)};
+  wrap.querySelector('[data-widget-action-delete]').onclick=async()=>{
+    const ok=await uiConfirm({title:'删除这个 Widget？',message:'删除后可以再从组件库添加回来。',confirmText:'删除',cancelText:'取消',danger:true});
+    if(!ok)return; S.custom.homeWidgets=(S.custom.homeWidgets||[]).filter(x=>x.id!==id); save(); close(); render(); uiToast('Widget 已删除');
+  };
+}
+
 function phoneOSBind(){
   const phone=$('.phone'); if(!phone)return;
   clearDragUI(); dragState=null;
@@ -776,7 +810,9 @@ function phoneOSBind(){
   $$('[data-home-edit-open]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();if(homeEdit)return;homeStudioSheet(homePage)});
   $$('[data-home-edit-done]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();homeEdit=false;dragState=null;clearDragUI();save();render();uiToast('主页已整理好')});
   $$('[data-widget-library-page]').forEach(x=>x.onclick=()=>widgetLibrarySheet(Number(x.dataset.widgetLibraryPage)||0));
+  $$('[data-widget-config]').forEach(x=>x.onclick=e=>{e.preventDefault();e.stopPropagation();widgetActionSheet(x.dataset.widgetConfig)});
   $('[data-page-wallpaper]')?.addEventListener('click',()=>wallpaperStudio(homePage));
+  $('[data-home-add-page]')?.addEventListener('click',()=>{S.custom.homePageCount=Math.max(2,Number(S.custom.homePageCount)||2)+1;save();render();uiToast('已增加一个主页')});
   $('[data-shade-close]')?.addEventListener('click',()=>{shadeOpen=false;$('#notificationShade')?.classList.remove('open')});
   $('[data-notif-read]')?.addEventListener('click',()=>{S.notifications.forEach(n=>n.read=true);save();render()});
   $('[data-notif-clear]')?.addEventListener('click',()=>{S.notifications=[];save();render()});
@@ -826,43 +862,43 @@ function phoneOSBind(){
   const bindDragHandle=(handle,kind)=>{
     const source=kind==='widget'?handle.closest('.home-widget'):handle.closest('[data-app-key],.folder-icon');
     if(!source)return;
-    let st=null;
+    let st=null,frame=0;
+    const paint=()=>{
+      frame=0;if(!st||!st.active)return;
+      st.ghost.style.transform=`translate3d(${st.x}px,${st.y}px,0) translate(-50%,-50%) scale(1.06)`;
+      const target=nearestTarget(st.x,st.y,kind==='widget'?'.home-widget':'[data-app-key],.folder-icon',source);
+      if(target!==st.target){st.target?.classList.remove('is-drop-target');st.target=target;target?.classList.add('is-drop-target')}
+      const pr=pages?.getBoundingClientRect();
+      if(pr){const now=performance.now();if(now-st.lastEdge>430){if(st.x>pr.right-34&&homePage<$$('.home-page',pages).length-1){st.lastEdge=now;setPage(homePage+1)}else if(st.x<pr.left+34&&homePage>0){st.lastEdge=now;setPage(homePage-1)}}}
+    };
+    const activate=()=>{
+      if(!st||st.active)return;st.active=true;st.ghost=makeGhost(source,kind);source.classList.add('is-drag-source');document.body.classList.add('ew-dragging');navigator.vibrate?.(7);paint();
+    };
+    const cleanup=(rerender=false)=>{
+      cancelAnimationFrame(frame);frame=0;st?.ghost?.remove();source.classList.remove('is-drag-source');clearTargets();document.body.classList.remove('ew-dragging');st=null;if(rerender)render();
+    };
     handle.onpointerdown=e=>{
       if(e.pointerType==='mouse'&&e.button!==0)return;
-      e.preventDefault();e.stopPropagation();
-      handle.setPointerCapture?.(e.pointerId);
-      const r=source.getBoundingClientRect();
-      st={id:e.pointerId,sx:e.clientX,sy:e.clientY,x:e.clientX,y:e.clientY,ghost:makeGhost(source,kind),source,target:null,page:Number(source.closest('.home-page')?.dataset.appPage)||0,lastEdge:0};
-      source.classList.add('is-drag-source');document.body.classList.add('ew-dragging');
-      st.ghost.style.left=e.clientX+'px';st.ghost.style.top=e.clientY+'px';
-      navigator.vibrate?.(8);
+      e.preventDefault();e.stopPropagation();handle.setPointerCapture?.(e.pointerId);
+      st={id:e.pointerId,sx:e.clientX,sy:e.clientY,x:e.clientX,y:e.clientY,ghost:null,active:false,source,target:null,page:Number(source.closest('.home-page')?.dataset.appPage)||0,lastEdge:0};
+      handle.classList.add('is-held');
     };
     handle.onpointermove=e=>{
-      if(!st||e.pointerId!==st.id)return;
-      e.preventDefault();e.stopPropagation();st.x=e.clientX;st.y=e.clientY;
-      st.ghost.style.left=e.clientX+'px';st.ghost.style.top=e.clientY+'px';
-      clearTargets();
-      const target=nearestTarget(e.clientX,e.clientY,kind==='widget'?'.home-widget':'[data-app-key],.folder-icon',source);
-      st.target=target;target?.classList.add('is-drop-target');
-      const pr=pages?.getBoundingClientRect();
-      if(pr){const now=performance.now();if(now-st.lastEdge>280){if(e.clientX>pr.right-44&&homePage<$$('.home-page',pages).length-1){st.lastEdge=now;setPage(homePage+1)}else if(e.clientX<pr.left+44&&homePage>0){st.lastEdge=now;setPage(homePage-1)}}}
+      if(!st||e.pointerId!==st.id)return;e.preventDefault();e.stopPropagation();st.x=e.clientX;st.y=e.clientY;
+      if(!st.active&&Math.hypot(st.x-st.sx,st.y-st.sy)>7)activate();
+      if(st.active&&!frame)frame=requestAnimationFrame(paint);
     };
-    const finish=e=>{
-      if(!st||e.pointerId!==st.id)return;
-      e.preventDefault();e.stopPropagation();
+    handle.onpointerup=e=>{
+      if(!st||e.pointerId!==st.id)return;e.preventDefault();e.stopPropagation();handle.classList.remove('is-held');
+      if(!st.active){cleanup(false);return;}
       const targetPage=pageAtPoint(st.x,st.y);
       if(kind==='widget'){
-        const wid=source.dataset.homeWidgetId,twid=st.target?.dataset.homeWidgetId;
-        const w=(S.custom.homeWidgets||[]).find(x=>x.id===wid);
+        const wid=source.dataset.homeWidgetId,twid=st.target?.dataset.homeWidgetId;const w=(S.custom.homeWidgets||[]).find(x=>x.id===wid);
         if(w){w.page=targetPage;if(twid&&twid!==wid)reorderWidget(wid,twid)}
-      }else{
-        const key=source.dataset.appKey;
-        if(key){const targetKey=st.target?.dataset.appKey;reorderApp(key,targetKey,targetPage)}
-      }
-      st.ghost.remove();source.classList.remove('is-drag-source');clearTargets();document.body.classList.remove('ew-dragging');
-      st=null;save();render();
+      }else{const key=source.dataset.appKey;if(key){const targetKey=st.target?.dataset.appKey;reorderApp(key,targetKey,targetPage)}}
+      save();cleanup(true);
     };
-    handle.onpointerup=finish;handle.onpointercancel=e=>{if(st){st.ghost.remove();source.classList.remove('is-drag-source');clearTargets();document.body.classList.remove('ew-dragging');st=null;render()}};
+    handle.onpointercancel=()=>{handle.classList.remove('is-held');cleanup(true)};
   };
   $$('[data-app-drag-handle]').forEach(h=>bindDragHandle(h,'app'));
   $$('[data-widget-drag-handle]').forEach(h=>bindDragHandle(h,'widget'));
@@ -1006,6 +1042,8 @@ function bind(){
   $$('[data-thomas-quick]').forEach(x=>x.onclick=()=>sendThomas(x.dataset.thomasQuick));
   $$('[data-thomas-action]').forEach(x=>x.onclick=()=>{const action=x.dataset.thomasAction;if(action==='mood'){open('mood');return;}if(action==='focus'){S.study.seconds=25*60;S.study.running=true;S.study.lastTick=Date.now();save();open('study');uiToast('25 分钟专注已开始');studyTick();}});
   $('[data-thomas-send]')?.addEventListener('click',()=>{const i=$('#thomasInput');sendThomas(i.value.trim())});
+  $('[data-thomas-plus]')?.addEventListener('click',()=>uiAlert({title:'Thomas 快捷入口',message:'你可以直接输入待办、心情、学习计划，Thomas 会按当前语气回复。图片功能也可以从旁边的图标添加。'}));
+  $('[data-thomas-attach]')?.addEventListener('click',()=>chooseImageFile(data=>{S.photos.unshift({id:uid(),src:data,caption:'来自 Thomas 对话',ts:Date.now()});save();uiToast('图片已保存到相册；下一步可以在对话里告诉 Thomas 你想聊什么。')}));
   $('#thomasInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('[data-thomas-send]')?.click()}});
   $('[data-thomas-clear]')?.addEventListener('click',async()=>{if(await uiConfirm({title:'清空聊天',message:'清空和 Thomas 的聊天记录？',confirmText:'清空',danger:true})){S.thomas=[];persistRender();uiToast('Thomas 的聊天记录已清空')}});
   $('[data-thomas-style]')?.addEventListener('click',()=>open('settings'));
